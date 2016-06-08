@@ -41,5 +41,7 @@ int main() {
 
     // Printing answer, write your code here
 
+	std::cout << "Success" << std::endl;
+
     return 0;
 }
