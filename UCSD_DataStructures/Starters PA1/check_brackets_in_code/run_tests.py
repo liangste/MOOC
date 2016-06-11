@@ -14,6 +14,7 @@ class TestBracketMethods(unittest.TestCase):
 		self.assertEqual('foo'.upper(), 'FOO')
 
 		for testNum in range(1, 55):
+			print("Test %d" % testNum)
 			testFile = g_testDirectory + "/%02d" % testNum
 			ansFile = g_testDirectory + "/%02d.a" % testNum
 
@@ -33,7 +34,7 @@ class TestBracketMethods(unittest.TestCase):
 				passedTime = time.time() - startTime
 				self.assertEqual(outStr, outBytes.decode('utf-8'))
 				self.assertTrue(passedTime <= 1.0)
-			except TimeoutExpired:
+			except Exception:
 				p.kill()
 
 if __name__ == '__main__':
