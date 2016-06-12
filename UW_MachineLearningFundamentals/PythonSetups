@@ -1,0 +1,2 @@
+conda create -n dato-env python=2.7 anaconda
+source activate dato-env
