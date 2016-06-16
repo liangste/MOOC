@@ -12,9 +12,9 @@ using std::vector;
 
 struct DisjointSetsElement {
 	int size, parent, rank;
-	
+
 	DisjointSetsElement(int size = 0, int parent = -1, int rank = 0):
-	    size(size), parent(parent), rank(rank) {}
+			size(size), parent(parent), rank(rank) {}
 };
 
 struct DisjointSets {
@@ -29,16 +29,41 @@ struct DisjointSets {
 
 	int getParent(int table) {
 		// find parent and compress path
+		if (sets[table].parent != table)
+			sets[table].parent = getParent(sets[table].parent);
+		return sets[table].parent;
 	}
 
 	void merge(int destination, int source) {
 		int realDestination = getParent(destination);
 		int realSource = getParent(source);
+		int increasedIndex;
 		if (realDestination != realSource) {
 			// merge two components
 			// use union by rank heuristic
-                        // update max_table_size
-		}		
+			if (sets[realDestination].rank > sets[realSource].rank) {
+				sets[realDestination].rank += sets[realSource].rank;
+				sets[realSource].rank = 1;
+				sets[realDestination].size += sets[realSource].size;
+				sets[realSource].parent = sets[realDestination].parent;
+				increasedIndex = realDestination;
+			} else if (sets[realDestination].rank < sets[realSource].rank) {
+				sets[realSource].rank += sets[realDestination].rank;
+				sets[realDestination].rank = 1;
+				sets[realSource].size += sets[realDestination].size;
+				sets[realDestination].parent = sets[realSource].parent;
+				increasedIndex = realSource;
+			} else {
+				sets[realDestination].rank += sets[realSource].rank;
+				sets[realSource].rank = 1;
+				sets[realDestination].size += sets[realSource].size;
+				sets[realSource].parent = sets[realDestination].parent;
+				increasedIndex = realDestination;
+			}
+			// update max_table_size
+			if (sets[increasedIndex].size > max_table_size)
+				max_table_size = sets[increasedIndex].size;
+		}
 	}
 };
 
@@ -55,11 +80,11 @@ int main() {
 	for (int i = 0; i < m; i++) {
 		int destination, source;
 		cin >> destination >> source;
-                --destination;
-                --source;
-		
+		--destination;
+		--source;
+
 		tables.merge(destination, source);
-	        cout << tables.max_table_size << endl;
+		cout << tables.max_table_size << endl;
 	}
 
 	return 0;
