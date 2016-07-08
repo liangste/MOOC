@@ -1,4 +1,9 @@
 #include <cstdio>
+#include <iostream>
+
+#define DEBUG 0
+
+using namespace std;
 
 // Splay tree implementation
 
@@ -12,9 +17,29 @@ struct Vertex {
   Vertex* right;
   Vertex* parent;
 
-  Vertex(int key, long long sum, Vertex* left, Vertex* right, Vertex* parent) 
+  Vertex(int key, long long sum, Vertex* left, Vertex* right, Vertex* parent)
   : key(key), sum(sum), left(left), right(right), parent(parent) {}
 };
+
+Vertex* g_root = NULL;
+
+void pre_traversal(Vertex*& root)
+{
+  Vertex* v = root;
+  if (v == NULL)
+    return;
+
+  cout << "(" << v->key << "," << v->sum << ") " ;
+  pre_traversal(v->left);
+  pre_traversal(v->right);
+}
+
+void do_pre_traversal()
+{
+  cout << "doing pre-order traversal " << endl;
+  pre_traversal(g_root);
+  cout << "done" << endl;
+}
 
 void update(Vertex* v) {
   if (v == NULL) return;
@@ -42,6 +67,8 @@ void small_rotation(Vertex* v) {
     v->left = parent;
     parent->right = m;
   }
+
+  // update order statistics
   update(parent);
   update(v);
   v->parent = grandparent;
@@ -67,7 +94,7 @@ void big_rotation(Vertex* v) {
     // Zig-zag
     small_rotation(v);
     small_rotation(v);
-  }  
+  }
 }
 
 // Makes splay of the given vertex and makes
@@ -89,7 +116,7 @@ void splay(Vertex*& root, Vertex* v) {
 // If found, returns a pointer to the node with the given key.
 // Otherwise, returns a pointer to the node with the smallest
 // bigger key (next value in the order).
-// If the key is bigger than all keys in the tree, 
+// If the key is bigger than all keys in the tree,
 // returns NULL.
 Vertex* find(Vertex*& root, int key) {
   Vertex* v = root;
@@ -101,7 +128,7 @@ Vertex* find(Vertex*& root, int key) {
     }
     last = v;
     if (v->key == key) {
-      break;      
+      break;
     }
     if (v->key < key) {
       v = v->right;
@@ -111,6 +138,31 @@ Vertex* find(Vertex*& root, int key) {
   }
   splay(root, last);
   return next;
+}
+
+Vertex* left_descendent(Vertex*& node) {
+  if (node->left == NULL)
+    return node;
+  else
+    return left_descendent(node->left);
+}
+
+Vertex* right_ancestor(Vertex*& node) {
+  if (node->parent == NULL)
+    return NULL;
+
+  if (node->key < node->parent->key)
+    return node->parent;
+  else
+    return right_ancestor(node->parent);
+}
+
+// return the next node, or NULL if no such node exists
+Vertex* get_next(Vertex*& node) {
+  if (node->right != NULL)
+    return left_descendent(node->right);
+  else
+    return right_ancestor(node);
 }
 
 void split(Vertex* root, int key, Vertex*& left, Vertex*& right) {
@@ -142,42 +194,113 @@ Vertex* merge(Vertex* left, Vertex* right) {
   return right;
 }
 
+void promote(Vertex*& old, Vertex*& newer) {
+  Vertex* oldold = old;
+  old->key = newer->key;
+  old->sum = newer->sum;
+  old->left = newer->left;
+  old->right = newer->right;
+}
+
+// assume node is at root already
+void delete_vertex(Vertex*& node) {
+  if (node->parent) {
+    cout << "SOMETHING IS WRONG, deleting a vertex that still has parent" << endl;
+    return;
+  }
+
+  Vertex* promoted = NULL;
+
+  if (node->right == NULL) {
+    if (node->left !=NULL) {
+      node->left->parent = NULL;
+    }
+    g_root = node->left;
+  } else {
+    promoted = get_next(node);
+    promoted->left = node->left;
+    if (node->left != NULL) {
+      node->left->parent = promoted;
+    }
+    //splay(g_root, promoted);
+    promoted->parent = NULL;
+    g_root = promoted;
+  }
+  update(g_root);
+}
+
 // Code that uses splay tree to solve the problem
 
-Vertex* root = NULL;
-
 void insert(int x) {
+#if DEBUG
+  cout << "### add " << x << endl;
+#endif
   Vertex* left = NULL;
   Vertex* right = NULL;
-  Vertex* new_vertex = NULL;  
-  split(root, x, left, right);
+  Vertex* new_vertex = NULL;
+  split(g_root, x, left, right);
   if (right == NULL || right->key != x) {
     new_vertex = new Vertex(x, x, NULL, NULL, NULL);
   }
-  root = merge(merge(left, new_vertex), right);
+  g_root = merge(merge(left, new_vertex), right);
 }
 
-void erase(int x) {                   
+void erase(int x) {
+#if DEBUG
+  cout << "### del " << x << endl;
+#endif
   // Implement erase yourself
+  Vertex* target = find(g_root, x);
+  Vertex* next = NULL;
 
+  if (target == NULL) {
+    return;
+  }
+  if (target->key != x) {
+    return;
+  }
+
+  next = get_next(target);
+  splay(g_root, next);
+  splay(g_root, target);
+  delete_vertex(target);
 }
 
-bool find(int x) {  
+bool find(int x) {
+#if DEBUG
+  cout << "### find " << x << endl;
+#endif
   // Implement find yourself
 
-  return false;
+  Vertex* ret = find(g_root, x);
+
+  if (ret == NULL)
+    return false;
+
+  return ret->key == x;
 }
 
 long long sum(int from, int to) {
+#if DEBUG
+  cout << "### sum from " << from << " to " << to << endl;
+#endif
   Vertex* left = NULL;
   Vertex* middle = NULL;
   Vertex* right = NULL;
-  split(root, from, left, middle);
+  split(g_root, from, left, middle);
   split(middle, to + 1, middle, right);
-  long long ans = 0;
+  long long ans = 0ll;
   // Complete the implementation of sum
-  
-  return ans;  
+
+  // sum all elements in middle
+  if (middle != NULL) {
+    update(middle);
+    ans = middle->sum;
+  }
+
+  g_root = merge(merge(left, middle), right);
+
+  return ans;
 }
 
 const int MODULO = 1000000001;
@@ -200,7 +323,7 @@ int main(){
         int x;
         scanf("%d", &x);
         erase((x + last_sum_result) % MODULO);
-      } break;            
+      } break;
       case '?' : {
         int x;
         scanf("%d", &x);
@@ -214,6 +337,10 @@ int main(){
         last_sum_result = int(res % MODULO);
       }
     }
+
+#if DEBUG
+    do_pre_traversal();
+#endif
   }
   return 0;
 }
