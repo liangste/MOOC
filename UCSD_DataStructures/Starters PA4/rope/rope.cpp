@@ -4,7 +4,7 @@
 #include <math.h>
 #include <vector>
 
-// TODO run mega_large_test under 2.7 seconds 
+// TODO run mega_large_test under 2.7 seconds
 
 #define DEBUG 0
 
@@ -19,6 +19,7 @@ typedef struct rope_node rope;
 struct rope_node {
 	int l_len; // length of string under left sub-tree
 	int len; // length of string under both left and right sub-trees
+	int height;
 	rope* left;
 	rope* right;
 	rope* parent;
@@ -28,6 +29,7 @@ struct rope_node {
 	rope_node(const string& d)
 		: l_len(d.size())
 		, len(d.size())
+		, height(0)
 		, left(NULL)
 		, right(NULL)
 		, parent(NULL)
@@ -42,14 +44,27 @@ struct rope_node {
 		, right(rr)
 		, parent(NULL)
 		, data("") {
+
+		// update height
+		int left_height = 0;
+		int right_height = 0;
+
 		if (ll != NULL) {
 			l_len = ll->len;
 			len = ll->len;
 			ll->parent = this;
+			left_height = ll->height;
 		}
 		if (rr != NULL) {
 			len += rr->len;
 			rr->parent = this;
+			right_height = rr->height;
+		}
+
+		if (left_height > right_height) {
+			height = left_height + 1;
+		} else {
+			height = right_height + 1;
 		}
 	};
 };
@@ -70,6 +85,10 @@ void reduce(rope*& r);
 
 // recursively update stats in a bottom-up manner
 void update_stats(rope*& r);
+
+void rotate_left(rope*& r);
+
+void rotate_right(rope*& r);
 
 // concatenates two ropes into one, and return pointer to the new rope
 rope* concat(rope*& left, rope*& right);
