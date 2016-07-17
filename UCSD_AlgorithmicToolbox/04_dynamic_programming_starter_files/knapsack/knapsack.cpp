@@ -7,9 +7,7 @@ using std::vector;
 
 int optimal_weight(int W, const vector<int> &w) {
 	//write your code here
-	int value[W + 1][w.size() + 1];
-
-	memset(value, 0, sizeof(value));
+	vector<vector<int> > value(W + 1, vector<int>(w.size() + 1, 0));
 
 	for (int i = 1; i <= w.size(); i++) {
 		for (int weight = 1; weight <= W; weight++) {
