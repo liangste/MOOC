@@ -3,16 +3,31 @@
 #include <vector>
 #include <map>
 
-using std::map;
-using std::vector;
-using std::string;
+using namespace std;
 
 typedef map<char, int> edges;
 typedef vector<edges> trie;
 
 trie build_trie(vector<string> & patterns) {
   trie t;
-  // write your code here
+  edges root;
+  t.push_back(root);
+  uint32_t currentNodeId;
+  for (auto& p : patterns) {
+    currentNodeId = 0;
+    for (int i = 0; i < p.size(); i++) {
+      char currentSymbol = p[i];
+      if (t[currentNodeId].find(currentSymbol) != t[currentNodeId].end()) {
+        currentNodeId = t[currentNodeId][currentSymbol];
+      } else {
+        edges newNode;
+        t[currentNodeId][currentSymbol] = t.size();
+        t.push_back(newNode);
+        currentNodeId = t.size() - 1;
+      }
+    }
+  }
+
   return t;
 }
 
