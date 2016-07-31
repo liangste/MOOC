@@ -16,11 +16,11 @@ struct Node {
 	Node() {fill(next, next + Letters, NA);}
 
 	bool isLeaf() const {
-	    return (next[0] == NA && next[1] == NA && next[2] == NA && next[3] == NA);
+			return (next[0] == NA && next[1] == NA && next[2] == NA && next[3] == NA);
 	}
 };
 
-int letterToIndex (char letter)
+int to_idx (char letter)
 {
 	switch (letter)
 	{
@@ -28,61 +28,90 @@ int letterToIndex (char letter)
 		case 'C': return 1; break;
 		case 'G': return 2; break;
 		case 'T': return 3; break;
-		default: assert (false); return -1;
+		default: return -1;
 	}
 }
 
-vector<int> solve(string text, int n, vector <string> patterns) {
+bool prefix_trie_matching(string text,
+													const vector<Node>& trie,
+													vector<int>& result) {
+	uint32_t symbolIdx = 0;
+	char symbol = text[symbolIdx];
+	uint32_t v = 0;
+	while(1) {
+		if (trie[v].isLeaf()) {
+			return true;
+		} else if (to_idx(symbol) != NA && trie[v].next[to_idx(symbol)] != NA) {
+			symbolIdx++;
+			v = trie[v].next[to_idx(symbol)];
+			symbol = text[symbolIdx];
+		} else {
+			return false;
+		}
+	}
+}
+
+void trie_matching(string text,
+									 const vector<Node>& trie,
+									 vector<int>& result) {
+	for (uint32_t u = 0; u < text.size(); u++) {
+		string prefix = text.substr(u);
+		if (prefix_trie_matching(prefix, trie, result)) {
+			result.push_back(u);
+		}
+	}
+}
+
+void print_trie(const vector<Node>& trie) {
+	for (int i = 0; i < trie.size(); i++) {
+		cout << "Node[" << i << "] ";
+		cout << "(A,C,G,T) = (";
+		cout << trie[i].next[0] << ",";
+		cout << trie[i].next[1] << ",";
+		cout << trie[i].next[2] << ",";
+		cout << trie[i].next[3];
+		cout << ")"  << endl;
+	}
+}
+
+vector<Node> build_trie(vector<string>& patterns) {
+	vector<Node> trie;
+	Node root;
+	trie.push_back(root);
+	uint32_t currentNodeId;
+
+	for (auto& p : patterns) {
+		currentNodeId = 0;
+		for (int i = 0; i < p.size(); i++) {
+			char symbol = p[i];
+			// if there's an edge leading to symbol
+			if (to_idx(symbol) != NA &&
+					trie[currentNodeId].next[to_idx(symbol)] != NA) {
+				currentNodeId = trie[currentNodeId].next[to_idx(symbol)];
+			} else { // construct a new Node
+				Node newNode;
+				trie[currentNodeId].next[to_idx(symbol)] = trie.size();
+				trie.push_back(newNode);
+				currentNodeId = trie.size() - 1;
+			}
+		}
+	}
+
+	return trie;
+}
+
+vector<int> solve(string text,
+									int n,
+									vector <string> patterns) {
 	vector<Node> trie;
 	vector<int> result;
 
-	Node root;
-	trie.push_back(root);
-	int currentNodeId;
+	// first we build a trie structure using all pattern in patterns
+	trie = build_trie(patterns);
+	//print_trie(trie);
 
-	// make a trie structure from suffixes to text
-	for (int i = 0; i < text.length(); i++) {
-		string suffix = text.substr(i);
-		currentNodeId = 0;
-		cout << "suffix = " << suffix << endl;
-		for (int j = 0; j < suffix.length(); j++) {
-			char currentSymbol = suffix[j];
-			if (trie[currentNodeId].isLeaf()) {
-				Node newNode;
-        trie[currentNodeId].next[letterToIndex(currentSymbol)] = trie.size();
-        trie.push_back(newNode);
-        currentNodeId = trie.size() - 1;
-      } else {
-				currentNodeId = trie[currentNodeId].next[letterToIndex(currentSymbol)];
-      }
-		}
-	}
-
-	cout << "constucted trie vector of size = " << trie.size() << endl;
-
-	// for each pattern in patterns, traverse the trie
-	unsigned searchIndex;
-	for (auto& p : patterns) {
-		searchIndex = 0;
-		bool inTrie = true;
-		for (unsigned u = 0; u < p.size(); u++) {
-			cout << "looking for " << p[u] << endl;
-			if (trie[searchIndex].next[letterToIndex(p[u])] != NA) {
-				cout << "1" << endl;
-				searchIndex = trie[searchIndex].next[letterToIndex(p[u])];
-			} else {
-				inTrie = false;
-			}
-			if (u == (p.size() - 1) && inTrie) {
-				cout << "found" << endl;
-			}
-		}
-	}
-	searchIndex = 0;
-	cout << "next[A] = " << trie[searchIndex].next[0] << endl;
-	cout << "next[C] = " << trie[searchIndex].next[1] << endl;
-	cout << "next[G] = " << trie[searchIndex].next[2] << endl;
-	cout << "next[T] = " << trie[searchIndex].next[3] << endl;
+	// perform trie-matching and store results
+	trie_matching(text, trie, result);
 
 	return result;
 }
