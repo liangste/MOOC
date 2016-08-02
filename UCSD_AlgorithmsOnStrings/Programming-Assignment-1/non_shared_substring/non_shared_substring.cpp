@@ -6,14 +6,16 @@
 
 using namespace std;
 
+#define DEBUG 0
 
 struct Node {
-	int idx; // to keep track of beginning string index if leaf, or -1
+	int last; // to keep track of beginning string index if leaf, or -1
+	int length;
 	bool first;
 	bool second;
 	map<string, unsigned> edges;
 
-	Node() : idx(-1), first(false), second(false) {}
+	Node() : last(-1), length(0), first(false), second(false) {}
 };
 
 class SuffixTree {
@@ -28,7 +30,6 @@ class SuffixTree {
 	void _Insert(string subStr, unsigned nodeIdx) {
 		Node& node = tree[nodeIdx];
 
-		map<string, unsigned>::iterator it;
 		for (auto& e : node.edges) {
 			//cout << "check edge " << e.first << endl;
 			unsigned u;
@@ -38,13 +39,12 @@ class SuffixTree {
 				unsigned originalIndex = e.second;
 
 				Node nonLeafNode;
-				Node& originalNode = tree[originalIndex];
 
 				string commonString = subStr.substr(0, u);
 				string edgeString = originalString.substr(u);
 				string toInsertSubstr = subStr.substr(u);
 
-				// check wether original index points to a non-leaf node, in which case
+				// check wether tree[nodeIdx]original index points to a non-leaf node, in which case
 				// we just need to insert remaining string to this node
 				if (edgeString.size() == 0) {
 					_Insert(toInsertSubstr, originalIndex);
@@ -55,10 +55,14 @@ class SuffixTree {
 				node.edges.erase(originalString);
 
 				// insert a new node
+				nonLeafNode.last = nodeIdx;
 				nonLeafNode.edges[edgeString] = originalIndex;
+				nonLeafNode.length = tree[nodeIdx].length + commonString.size();
 				unsigned new_idx = tree.size();
 				node.edges[commonString] = new_idx;
 				tree.push_back(nonLeafNode);
+				tree[originalIndex].last = new_idx;
+				//tree[originalIndex].length -= commonString.size();
 
 				_Insert(toInsertSubstr, new_idx);
 				return;
@@ -67,7 +71,9 @@ class SuffixTree {
 
 		// if we didn't have to split any edges
 		Node newNode;
-		tree[nodeIdx].edges[subStr] = tree.size();
+		newNode.last = nodeIdx;
+		newNode.length = tree[nodeIdx].length + subStr.size();
+		node.edges[subStr] = tree.size();
 		tree.push_back(newNode);
 	}
 public:
@@ -81,18 +87,64 @@ public:
 		}
 	}
 
-	void GetSUS(vector<string>& edges) {
-		for (unsigned u = 0; u < tree.size(); u++) {
-			for (auto& e : tree[u].edges) {
-				edges.push_back(e.first);
+	// find Shortest Uncommon Substring
+	string GetSUS() {
+		string ret;
+		unsigned lastNode = 0;
+
+		int curLen = INT32_MAX;
+		// trim nodes
+		for (uint32_t u = 0; u < tree.size(); u++) {
+			if (tree[u].first && !tree[u].second) {
+				if (tree[u].edges.empty()) {
+					tree[u].length = tree[tree[u].last].length + 1;
+				}
+
+				if (tree[u].length < curLen) {
+					curLen = tree[u].length;
+					lastNode = u;
+				}
 			}
 		}
+
+		vector<int> traversalIdx;
+		int idx = lastNode;
+		while (idx != -1) {
+			traversalIdx.insert(traversalIdx.begin(), idx);
+			idx = tree[idx].last;
+		}
+
+#if DEBUG
+		for (auto& i : traversalIdx) {
+			cout << i << " ";
+		} cout << endl;
+#endif
+
+		if (traversalIdx.size() == 0) return ret;
+		int curIdx = traversalIdx[0];
+		for (unsigned u = 1; u < traversalIdx.size(); u++) {
+			Node& node = tree[curIdx];
+			for (auto& e : node.edges) {
+				if (e.second == traversalIdx[u]) {
+					if (u != (traversalIdx.size() - 1)) {
+						ret += e.first;
+					} else {
+						ret += e.first[0];
+					}
+					curIdx = e.second;
+				}
+			}
+		}
+		return ret;
 	}
 
 	void PrintTree() {
 		cout << "++++ Printing Tree ++++" << endl;
 		for (unsigned u = 0; u < tree.size(); u++) {
-			cout << "node[" << u << "] " << tree[u].first << " " << tree[u].second << endl;
+			cout << "node[" << u << "] ";
+			cout << " last=" << tree[u].last << " ";
+			cout << " len=" << tree[u].length << " ";
+			cout << "X:" << tree[u].first << " Y:" << tree[u].second << endl;
 			if (tree[u].edges.empty()) {
 				cout << "\tEmpty" << endl;
 			}
@@ -172,8 +224,6 @@ public:
 
 string solve (string p, string q)
 {
-	vector<string> edges;
-	string result = p;
 	SuffixTree suffixTree(p + "#" + q + "$");
 	for (unsigned u = 0; u < p.size(); u++) {
 		string sub = p.substr(u);
@@ -183,10 +233,10 @@ string solve (string p, string q)
 		string sub = q.substr(u);
 		suffixTree.LabelSecond(sub);
 	}
+#if DEBUG
 	suffixTree.PrintTree();
-	suffixTree.GetSUS(edges);
-
-	return result;
+#endif
+	return suffixTree.GetSUS();
 }
 
 int main (void)
