@@ -3,6 +3,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
+
+#define DEBUG 0
 
 using namespace std;
 
@@ -11,32 +14,13 @@ enum IBWTState {
 	Last
 };
 
+struct Elem {
+	char symbol;
+	unsigned occ;
+	Elem() : symbol('\0'), occ(0) {}
+};
+
 // TODO use hash table to speed up First-Last lookup
-
-// get row id of index's occurance of symbol in bwt
-unsigned getFirstRow(const string& col, char symbol, unsigned index) {
-	unsigned cur_index = 0;
-	for (unsigned u = 0; u < col.size(); u++) {
-		if (col[u] == symbol) {
-			if (index == cur_index) {
-				return u;
-			} else {
-				cur_index++;
-			}
-		}
-	}
-	return 0;
-}
-
-// return i-th occurance of symbol on row in bwt
-unsigned getLastIndex(const string& col, char symbol, unsigned row) {
-	assert(col[row] == symbol);
-	unsigned ret = 0;
-	for (unsigned u = 0; u < row; u++) {
-		if (col[u] == symbol) ret++;
-	}
-	return ret;
-}
 
 string InverseBWT(const string& bwt) {
 	string firstColumn(bwt);
@@ -44,25 +28,95 @@ string InverseBWT(const string& bwt) {
 	string lastColumn(bwt);
 	string text = bwt;
 
+#if DEBUG
+	cout << "first column: " << firstColumn << endl;
+	cout << "last column: " << lastColumn << endl;
+#endif
+
+	// TODO build string->row map of first column
+	unsigned cnt_a, cnt_c, cnt_g, cnt_t;
+	map<string, unsigned> lastFirstMap;
+	string str;
+	cnt_a = cnt_c = cnt_g = cnt_t = 0;
+	for (unsigned u = 1; u < firstColumn.size(); u++) {
+		str = "";
+		switch(firstColumn[u]) {
+			case 'A':
+				str = string("A") + std::to_string(cnt_a++);
+				break;
+			case 'C':
+				str = string("C") + std::to_string(cnt_c++);
+				break;
+			case 'G':
+				str = string("G") + std::to_string(cnt_g++);
+				break;
+			case 'T':
+				str = string("T") + std::to_string(cnt_t++);
+				break;
+			default:
+				str = "$";
+				break;
+		}
+		if (str.size() > 0)
+			lastFirstMap[str] = u;
+	}
+	// TODO build string keys of last column
+	vector<string> lastKeys;
+	cnt_a = cnt_c = cnt_g = cnt_t = 0;
+	for (unsigned u = 0; u < firstColumn.size(); u++) {
+		switch(lastColumn[u]) {
+			case 'A':
+				str = string("A") + std::to_string(cnt_a++);
+				break;
+			case 'C':
+				str = string("C") + std::to_string(cnt_c++);
+				break;
+			case 'G':
+				str = string("G") + std::to_string(cnt_g++);
+				break;
+			case 'T':
+				str = string("T") + std::to_string(cnt_t++);
+				break;
+			default:
+				str = "$";
+				break;
+		}
+		lastKeys.push_back(str);
+	}
+
+#if DEBUG
+	for (auto& m : lastFirstMap) {
+		cout << m.first << " -> " << m.second << endl;
+	}
+
+	for (auto& k : lastKeys) {
+		cout << k << endl;
+	}
+#endif
+
 	// Inverse-BWT using First-Last Property
 	char symbol; // current symbol
 	unsigned index; // ith count of symbol
 	unsigned row = 0;
 	IBWTState state = Last;
+	string key;
 
 	text[0] = '$';
 	unsigned strIndex = 1;
 	while (strIndex < bwt.size()) {
 		switch(state) {
 			case First:
-				row = getFirstRow(firstColumn, symbol, index);
+				// TODO get new row
+				//row = getFirstRow(firstColumn, symbol, index);
+				key = lastKeys[row];
+				row = lastFirstMap[key];
 				state = Last;
 				break;
 			case Last:
 			default:
-				symbol = bwt[row];
+				symbol = lastColumn[row];
 				text[strIndex++] = symbol;
-				index = getLastIndex(lastColumn, symbol, row);
+				//index = getLastIndex(lastColumn, symbol, row);
 				state = First;
 				break;
 		}
