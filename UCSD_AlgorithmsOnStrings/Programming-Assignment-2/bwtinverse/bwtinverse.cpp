@@ -9,117 +9,96 @@
 
 using namespace std;
 
-enum IBWTState {
-	First = 0,
-	Last
-};
-
-struct Elem {
-	char symbol;
-	unsigned occ;
-	Elem() : symbol('\0'), occ(0) {}
-};
-
-// TODO use hash table to speed up First-Last lookup
-
 string InverseBWT(const string& bwt) {
-	string firstColumn(bwt);
-	sort(firstColumn.begin(), firstColumn.end());
-	string lastColumn(bwt);
-	string text = bwt;
+	string text;
+	text.resize(bwt.size());
 
-#if DEBUG
-	cout << "first column: " << firstColumn << endl;
-	cout << "last column: " << lastColumn << endl;
-#endif
+	// NOTE see http://web.stanford.edu/class/cs262/presentations/lecture4.pdf
+	unsigned LF[bwt.size()];
+	map<char, unsigned> C;
 
-	// TODO build string->row map of first column
-	unsigned cnt_a, cnt_c, cnt_g, cnt_t;
-	map<string, unsigned> lastFirstMap;
-	string str;
-	cnt_a = cnt_c = cnt_g = cnt_t = 0;
-	for (unsigned u = 1; u < firstColumn.size(); u++) {
-		str = "";
-		switch(firstColumn[u]) {
+	unsigned a_cnt, c_cnt, g_cnt, t_cnt;
+
+	// construct C
+	a_cnt = c_cnt = g_cnt = t_cnt = 0;
+	for (unsigned u = 0; u < bwt.size(); u++) {
+		switch(bwt[u]) {
 			case 'A':
-				str = string("A") + std::to_string(cnt_a++);
+				a_cnt++;
 				break;
 			case 'C':
-				str = string("C") + std::to_string(cnt_c++);
+				c_cnt++;
 				break;
 			case 'G':
-				str = string("G") + std::to_string(cnt_g++);
+				g_cnt++;
 				break;
 			case 'T':
-				str = string("T") + std::to_string(cnt_t++);
+				t_cnt++;
 				break;
 			default:
-				str = "$";
 				break;
 		}
-		if (str.size() > 0)
-			lastFirstMap[str] = u;
-	}
-	// TODO build string keys of last column
-	vector<string> lastKeys;
-	cnt_a = cnt_c = cnt_g = cnt_t = 0;
-	for (unsigned u = 0; u < firstColumn.size(); u++) {
-		switch(lastColumn[u]) {
-			case 'A':
-				str = string("A") + std::to_string(cnt_a++);
-				break;
-			case 'C':
-				str = string("C") + std::to_string(cnt_c++);
-				break;
-			case 'G':
-				str = string("G") + std::to_string(cnt_g++);
-				break;
-			case 'T':
-				str = string("T") + std::to_string(cnt_t++);
-				break;
-			default:
-				str = "$";
-				break;
-		}
-		lastKeys.push_back(str);
 	}
 
 #if DEBUG
-	for (auto& m : lastFirstMap) {
-		cout << m.first << " -> " << m.second << endl;
-	}
-
-	for (auto& k : lastKeys) {
-		cout << k << endl;
-	}
+	cout << "bwt: " << bwt << endl;
+	cout << "A: " << a_cnt << endl;
+	cout << "C: " << c_cnt << endl;
+	cout << "G: " << g_cnt << endl;
+	cout << "T: " << t_cnt << endl;
 #endif
 
-	// Inverse-BWT using First-Last Property
-	char symbol; // current symbol
-	unsigned index; // ith count of symbol
-	unsigned row = 0;
-	IBWTState state = Last;
-	string key;
+	C['A'] = 1;
+	C['C'] = a_cnt + C['A']; // all A's + $
+	C['G'] = c_cnt + C['C']; // all C's + A's + $
+	C['T'] = g_cnt + C['G'];
 
+#if DEBUG
+	cout << "C[A]: " << C['A'] << endl;
+	cout << "C[C]: " << C['C'] << endl;
+	cout << "C[G]: " << C['G'] << endl;
+	cout << "C[T]: " << C['T'] << endl;
+#endif
+
+	// construct LF array
+	a_cnt = c_cnt = g_cnt = t_cnt = 0;
+	for (unsigned u = 0; u < bwt.size(); u++) {
+		switch(bwt[u]) {
+			case 'A':
+				a_cnt++;
+				LF[u] = a_cnt + C['A'];
+				break;
+			case 'C':
+				c_cnt++;
+				LF[u] = c_cnt + C['C'];
+				break;
+			case 'G':
+				g_cnt++;
+				LF[u] = g_cnt + C['G'];
+				break;
+			case 'T':
+				t_cnt++;
+				LF[u] = t_cnt + C['T'];
+				break;
+			case '$':
+				LF[u] = 1;
+				break;
+			default:
+				break;
+		}
+	}
+
+#if DEBUG
+	for (unsigned u = 0; u < bwt.size(); u++) {
+		cout << LF[u] << " ";
+	} cout << endl;
+#endif
+
+	unsigned idx = 0;
 	text[0] = '$';
-	unsigned strIndex = 1;
-	while (strIndex < bwt.size()) {
-		switch(state) {
-			case First:
-				// TODO get new row
-				//row = getFirstRow(firstColumn, symbol, index);
-				key = lastKeys[row];
-				row = lastFirstMap[key];
-				state = Last;
-				break;
-			case Last:
-			default:
-				symbol = lastColumn[row];
-				text[strIndex++] = symbol;
-				//index = getLastIndex(lastColumn, symbol, row);
-				state = First;
-				break;
-		}
+	for (unsigned u = 0; u < (bwt.size() - 1); u++) {
+		text[u + 1] = bwt[idx];
+		idx = LF[idx] - 1;
 	}
 
 	reverse(text.begin(), text.end());
