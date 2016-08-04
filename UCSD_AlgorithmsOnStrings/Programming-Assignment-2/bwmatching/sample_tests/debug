@@ -1,0 +1,8 @@
+0    5    10   15   20   25   30   35   40   45   50
+|    |    |    |    |    |    |    |    |    |    |
+TCCTCTATGAGATCCTATTCTATGAAACCTTCA$GACCAAAATTCTCCGGC   (bwt)
+$AAAAAAAAAAAAAACCCCCCCCCCCCCCCGGGGGGTTTTTTTTTTTTTTT
+
+(T) t:b = 0:50 => 36:50
+(C) t:b = 36:50 => 24:29
+(C) t:b = 24:29 => 20:22
