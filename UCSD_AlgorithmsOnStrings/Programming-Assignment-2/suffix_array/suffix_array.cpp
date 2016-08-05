@@ -3,14 +3,9 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <map>
 
-using std::cin;
-using std::cout;
-using std::endl;
-using std::make_pair;
-using std::pair;
-using std::string;
-using std::vector;
+using namespace std;
 
 // Build suffix array of the string text and
 // return a vector result of the same length as the text
@@ -19,7 +14,17 @@ using std::vector;
 // suffix of text starts.
 vector<int> BuildSuffixArray(const string& text) {
   vector<int> result;
-  // Implement this function yourself
+
+  map<string, int> suffixArrayMap;
+  for (int i = 0; i < text.size(); i++) {
+    string s = text.substr(i);
+    suffixArrayMap[s] = i;
+  }
+
+  for (auto& a : suffixArrayMap) {
+    result.push_back(a.second);
+  }
+
   return result;
 }
 
