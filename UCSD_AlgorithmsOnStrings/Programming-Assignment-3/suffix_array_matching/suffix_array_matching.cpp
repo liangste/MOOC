@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <fstream>
 
 using namespace std;
 
@@ -137,17 +138,26 @@ bool StringLexiLessThan(const std::string& A, const std::string B) {
   }
 }
 
+bool suffix_array_printed = false;
+
 vector<int> FindOccurrences(const string& pattern, const string& text, const vector<int>& suffix_array) {
   vector<int> result;
+
+  if (pattern.size() == 0) {
+    return result;
+  }
 
   int minIndex = 0;
   int maxIndex = text.size();
 
 #if DEBUG
-  int i = 0;
-  for (auto & s : suffix_array) {
-    cout << i << ":" << s << ":" << text.substr(s) << endl;
-    i++;
+  if (!suffix_array_printed) {
+    int i = 0;
+    for (auto & s : suffix_array) {
+      cout << "s[" << i << "] = " << s << ", " << text.substr(s) << endl;
+      i++;
+    }
+    suffix_array_printed = true;
   }
 #endif
 
@@ -161,34 +171,50 @@ vector<int> FindOccurrences(const string& pattern, const string& text, const vec
   }
 
   int start = minIndex;
-  maxIndex = text.size();
+  maxIndex = text.size() - 1;
 
+  int oldMin, oldMax;
   while(minIndex < maxIndex) {
+    oldMin = minIndex;
+    oldMax = maxIndex;
     int midIndex = (minIndex + maxIndex) / 2;
-    if (StringLexiLessThan(pattern, text.substr(suffix_array[midIndex]))) {
+    string theSubstr = text.substr(suffix_array[midIndex]);
+    if (pattern > theSubstr) {
+    } else if (0 == theSubstr.compare(0, pattern.size(), pattern)) {
+      minIndex = midIndex;
+    } else  {
       maxIndex = midIndex - 1;
-    } else {
-      minIndex = midIndex + 1;
     }
+
+    if (oldMin == minIndex && oldMax == maxIndex)
+      break;
+  }
+  int end = maxIndex;
+
+  int actual_text_size = text.size() - 1;
+  if (end > actual_text_size) {
+    end = actual_text_size;
   }
 
-  int sstart = start;
-  while (sstart < maxIndex) {
-    if (pattern > text.substr(suffix_array[start]))
-      break;
-    sstart++;
+  // move end a little
+  if (0 != text.substr(suffix_array[end]).compare(0, pattern.size(), pattern)) {
+    end--;
+  } else if ((end + 1) < suffix_array.size() && 0 == text.substr(suffix_array[end + 1]).compare(0, pattern.size(), pattern)) {
+    end++;
   }
-  int end = sstart;
 
 #if DEBUG
-  cout << "start = " << start << endl;
-  cout << "end = " << end << endl;
+  cout << "pattern = " << pattern;
+  cout << " start = " << start;
+  cout << " end = " << end << endl;
 #endif
+
 
   if (start > end) {
     return result;
   } else if (start == end) {
-    if (pattern == text.substr(suffix_array[start]).substr(0, pattern.size())) {
+    if (start < suffix_array.size()
+      && pattern == text.substr(suffix_array[start]).substr(0, pattern.size())) {
       result.push_back(suffix_array[start]);
     }
   } else {
@@ -201,7 +227,6 @@ vector<int> FindOccurrences(const string& pattern, const string& text, const vec
 }
 
 int main() {
-
   char buffer[100001];
   scanf("%s", buffer);
   string text = buffer;
@@ -211,7 +236,8 @@ int main() {
   scanf("%d", &pattern_count);
   vector<bool> occurs(text.length(), false);
   for (int pattern_index = 0; pattern_index < pattern_count; ++pattern_index) {
-    scanf("%s", buffer);
+    if (scanf("%s", buffer) < 0)
+      continue;
     string pattern = buffer;
     vector<int> occurrences = FindOccurrences(pattern, text, suffix_array);
     for (int j = 0; j < occurrences.size(); ++j) {
