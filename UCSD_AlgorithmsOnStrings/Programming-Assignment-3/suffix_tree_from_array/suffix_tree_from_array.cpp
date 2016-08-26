@@ -61,6 +61,20 @@ void CreateNewLeaf(vector<STNode>& tree, int curNodeIndex, const string& text, i
 	tree[curNodeIndex].children[Char2Idx(text[suffix + curNode.depth])] = leafIdx;
 }
 
+int BreakEdge(vector<STNode>& tree, int curNodeIndex, const string& text, int start, int offset) {
+	char startChar = text[start];
+	char midChar = text[start + offset];
+	STNode& curNode = tree[curNodeIndex];
+	int edgeEnd = tree[curNode.children[Char2Idx(startChar)]].end;
+	STNode midNode(curNodeIndex, curNode.depth + offset, start + offset, edgeEnd);
+	midNode.children[Char2Idx(midChar)] = curNode.children[Char2Idx(startChar)];
+	tree.push_back(midNode);
+	int midNodeIndex = tree.size() - 1;
+	tree[curNode.children[Char2Idx(startChar)]].parent = midNodeIndex;
+	curNode.children[Char2Idx(startChar)] = midNodeIndex;
+	return midNodeIndex;
+}
+
 map<int, vector<Edge> > SuffixTreeFromSuffixArray(const vector<int>& suffix_array,
 																									const vector<int>& lcp_array,
 																									const string& text) {
@@ -80,14 +94,21 @@ map<int, vector<Edge> > SuffixTreeFromSuffixArray(const vector<int>& suffix_arra
 		if (curNode.depth == lcpPrev) {
 			CreateNewLeaf(tree, curNodeIndex, text, suffix);
 		} else {
-
+			int edgeStart = suffix_array[i] - curNode.depth;
+			int offset = lcpPrev - curNode.depth;
+			int midNode = BreakEdge(tree, curNodeIndex, text, edgeStart, offset);
+			CreateNewLeaf(tree, midNode, text, suffix);
 		}
 		if (i < (text.size() - 1)) {
 			lcpPrev = lcp_array[i];
 		}
 	}
 
+	// TODO print tree for debugging
+
+	// copy over all nodes to Edge rep
 	for (int i = 0; i < tree.size(); i++) {
+		cout << "node " << i << endl;
 		STNode& p = tree[i];
 		for (int j = 0; j < 5; j++) {
 			if (p.children[j] != INVALID) {
