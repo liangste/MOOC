@@ -27,17 +27,6 @@ unsigned Char2Idx(char c) {
 	}
 }
 
-struct STNode {
-	int parent;
-	int children[5] = {INVALID, INVALID, INVALID, INVALID, INVALID};
-	int depth;
-	int start;
-	int end;
-
-	STNode(int p, int d, int s, int e)
-		: parent(p), depth(d), start(s), end(e) {};
-};
-
 struct Edge {
 	// The ending node of this edge.
 	int node;
@@ -53,6 +42,46 @@ struct Edge {
 	Edge(const Edge& e) : node(e.node), start(e.start), end(e.end) {}
 };
 
+struct STNode {
+	int parent;
+	int children[5] = {INVALID, INVALID, INVALID, INVALID, INVALID};
+	int depth;
+	int start;
+	int end;
+
+	STNode(int p, int d, int s, int e)
+		: parent(p), depth(d), start(s), end(e) {
+		cout << "Create node with p=" << parent << " depth=" << d << " start=" << start << " end=" << end << endl;
+	};
+};
+
+void PrintTree(const vector<STNode>& tree, const std::string& text)
+{
+	cout << "================== TREE ==================" << endl;
+	// copy over all nodes to Edge rep
+	for (int i = 0; i < tree.size(); i++) {
+		cout << "|| node " << i;
+		cout << ", depth=" << tree[i].depth;
+		cout << ", parent=" << tree[i].parent;
+		cout << ", start=" << tree[i].start;
+		cout << ", end=" << tree[i].end;
+		if (tree[i].end - tree[i].start)
+		{
+			cout << ", substr=" << text.substr(tree[i].start, tree[i].end - tree[i].start);
+		}
+		cout << endl;
+
+		for (int j = 0; j < 5; j++) {
+			if (tree[i].children[j] != INVALID) {
+				cout << "||\tc -> " << tree[i].children[j] << endl;
+			}
+		}
+	}
+	cout << "==========================================" << endl;
+	//while(1) {};
+}
+
+// create a new node with suffix position
 void CreateNewLeaf(vector<STNode>& tree, int curNodeIndex, const string& text, int suffix) {
 	STNode& curNode = tree[curNodeIndex];
 	STNode leaf(curNodeIndex, text.size() - suffix, suffix + curNode.depth, text.size());
@@ -61,22 +90,34 @@ void CreateNewLeaf(vector<STNode>& tree, int curNodeIndex, const string& text, i
 	tree[curNodeIndex].children[Char2Idx(text[suffix + curNode.depth])] = leafIdx;
 }
 
+// break existing edge and create a node inbetween, return index of newly created node
+// curNodeIndex: root node form which to break edge
+// start: midNode starts at this index
+// offset: offset after index that a new edge starts from, midNode should end at
+// start + offset index
 int BreakEdge(vector<STNode>& tree, int curNodeIndex, const string& text, int start, int offset) {
-	cout << "BreakEdge at " << curNodeIndex << " start=" << start << " offset=" << offset << endl;
 	char startChar = text[start];
 	char midChar = text[start + offset];
+	cout << "BreakEdge at " << curNodeIndex;
+	cout << " start=" << start << "[" << text[start] << "]";
+	cout << " offset=" << offset << "[" << text[offset] << "]" << endl;
+
 	STNode& curNode = tree[curNodeIndex];
-	int edgeEnd = tree[curNode.children[Char2Idx(startChar)]].end;
-	STNode midNode(curNodeIndex, curNode.depth + offset, start + offset, edgeEnd);
+	// create new midNode
+	STNode midNode(curNodeIndex, curNode.depth + offset, start, start + offset);
 	midNode.children[Char2Idx(midChar)] = curNode.children[Char2Idx(startChar)];
 	tree.push_back(midNode);
 	int midNodeIndex = tree.size() - 1;
+
 	tree[midNodeIndex].children[Char2Idx(midChar)] = curNode.children[Char2Idx(startChar)];
-	cout << "update " << curNode.children[Char2Idx(startChar)] << " parent to " << midNodeIndex << endl;
+
+	// update start index
+	tree[curNode.children[Char2Idx(startChar)]].start += offset;
+	char originalChildNewChar = text[tree[curNode.children[Char2Idx(startChar)]].start];
+
 	tree[curNode.children[Char2Idx(startChar)]].parent = midNodeIndex;
 	// update start
 	tree[curNodeIndex].children[Char2Idx(startChar)] = midNodeIndex;
-	cout << "BrokeEdge ... mid=" << midNodeIndex << endl;
 	return midNodeIndex;
 }
 
@@ -97,43 +138,39 @@ map<int, vector<Edge> > SuffixTreeFromSuffixArray(const vector<int>& suffix_arra
 			curNodeIndex = tree[curNodeIndex].parent;
 		}
 		STNode& curNode = tree[curNodeIndex];
+		cout << "suffix=" << suffix << " curNodeIndex=" << curNodeIndex << " curNode.depth=" << curNode.depth << " lcpPrev=" << lcpPrev << endl;
 		if (curNode.depth == lcpPrev) {
 			CreateNewLeaf(tree, curNodeIndex, text, suffix);
 		} else {
-			int edgeStart = suffix_array[i] - curNode.depth;
+			// since we're operating on curNode, calculate wrt curNode parameters
+			int edgeStart = suffix_array[i - 1] + curNode.depth;
 			int offset = lcpPrev - curNode.depth;
 			int midNode = BreakEdge(tree, curNodeIndex, text, edgeStart, offset);
 			CreateNewLeaf(tree, midNode, text, suffix);
-			for (int i = 1; i < 5; i++) {
-				cout << " " << tree[curNodeIndex].children[i];
-			} cout << endl;
-			for (int i = 1; i < 5; i++) {
-				cout << " " << tree[midNode].children[i];
-			} cout << endl;
+
+			// prop up
+			int cur = tree.size() - 1;
+			cur = tree[cur].parent;
+			while (cur != -1  && tree[cur].parent != -1) {
+				cout << "prop up " << cur << endl;
+				tree[cur].start -= offset;
+				tree[cur].end -= offset;
+				cur = tree[cur].parent;
+			}
 		}
 		if (i < (text.size() - 1)) {
 			lcpPrev = lcp_array[i];
 		}
+		PrintTree(tree, text);
 	}
 
 	// TODO print tree for debugging
 
 	// copy over all nodes to Edge rep
 	for (int i = 0; i < tree.size(); i++) {
-		cout << "node " << i;;
-		cout << ", parent=" << tree[i].parent;
-		cout << ", start=" << tree[i].start;
-		cout << ", end=" << tree[i].end;
-		if (tree[i].end - tree[i].start)
-		{
-			cout << ", substr=" << text.substr(tree[i].start, tree[i].end - tree[i].start);
-		}
-		cout << endl;
-
 		STNode& p = tree[i];
 		for (int j = 0; j < 5; j++) {
 			if (p.children[j] != INVALID) {
-				cout << "\tc -> " << p.children[j] << endl;
 				STNode& c = tree[p.children[j]];
 				Edge edge(p.children[j], c.start, c.end);
 				edges[i].push_back(edge);
