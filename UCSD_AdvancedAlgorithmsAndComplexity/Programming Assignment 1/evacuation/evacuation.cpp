@@ -21,6 +21,12 @@ public:
 	//   backward edge is equal to flow
 	struct Edge {
 		int from, to, capacity, flow;
+
+		// calculate residual capacity for forward edges
+		int getResFwd() const {return capacity - flow;};
+
+		// calculate residual capacity for backward edges
+		int getResBkwd() const {return flow;};
 	};
 
 private:
@@ -62,7 +68,7 @@ public:
 		cout << "Edge from " << edge.from << "->" << edge.to << ", c=" << edge.capacity << ", flow=" << edge.flow << endl;
 	}
 
-	bool dfs_path_helper(int vertex, vector<int>& path, vector<int>& caps) {
+	bool dfs_path_helper(int vertex, vector<int>& path, vector<size_t>& edgeIndices) {
 		cout << "dfs_path_helper on vertex=" << vertex << endl;
 		if (vertex < 0 || vertex >= graph.size()) {
 			return false;
@@ -76,11 +82,17 @@ public:
 		vector<size_t> ids = get_ids(vertex);
 		for (auto id : ids) {
 			Edge e = edges[id];
-			if (e.capacity > 0) {
+			int residual_flow = 0;
+			if (id & 1) {
+				residual_flow = e.getResBkwd();
+			} else {
+				residual_flow = e.getResFwd();
+			}
+			if (residual_flow > 0) {
 				cout << "check to " << e.to << endl;
-				if (dfs_path_helper(e.to, path, caps)) {
+				if (dfs_path_helper(e.to, path, edgeIndices)) {
 					path.push_back(vertex);
-					caps.push_back(e.capacity);
+					edgeIndices.push_back(id);
 					return true;
 				}
 			}
@@ -89,16 +101,12 @@ public:
 		return false;
 	}
 
-	void find_dfs_path(vector<int>& path, vector<int>& caps) {
+	void find_dfs_path(vector<int>& path, vector<size_t>& edgeIndices) {
 		// find a path from vertex index 0 to vertex index graph.size() - 1 using
 		// Depth-First-Search algorithm. Then return indices of vertexes of this
 		// path
 
-		// for each edge from current vertex
-		//   if DFS_Helper(edge, path) returns true
-		//     add this vertex to path
-		//     return true
-		dfs_path_helper(0, path, caps);
+		dfs_path_helper(0, path, edgeIndices);
 	}
 
 	void add_flow(size_t id, int flow) {
@@ -153,30 +161,40 @@ int max_flow(FlowGraph& graph, int from, int to) {
 	//   g flow with g_e = X for e in P
 	//   f <- f + g
 
-	vector<int> path;
-	vector<int> caps;
-	graph.find_dfs_path(path, caps);
-	for (auto v : path) {
-		cout << v << " ";
-	} cout << endl;
+	while(true) {
+		vector<int> path;
+		vector<size_t> edges;
+		graph.find_dfs_path(path, edges);
+		for (auto v : path) {
+			cout << v << " ";
+		} cout << endl;
 
-	for (auto c : caps) {
-		cout << c << " ";
-	} cout << endl;
-
-	if (path.size() == 0) {
-		return flow;
-	}
-
-	int min_cap = INT_MAX;
-	for (auto c : caps) {
-		if (c < min_cap) {
-			min_cap = c;
+		if (path.size() == 0) {
+			return flow;
 		}
-	}
 
-	// get X ... minimum capacity alone the path
-	cout << "minimum capcacity alone the path is " << min_cap << endl;
+		int min_cap = INT_MAX;
+		for (auto eid : edges) {
+			if (eid & 1) {
+				if (graph.get_edge(eid).getResBkwd() < min_cap) {
+					min_cap = graph.get_edge(eid).getResBkwd();
+				}
+			} else {
+				if (graph.get_edge(eid).getResFwd() < min_cap) {
+					min_cap = graph.get_edge(eid).getResFwd();
+				}
+			}
+		}
+
+		// get X ... minimum capacity alone the path
+		cout << "minimum capcacity alone the path is " << min_cap << endl;
+
+		for (auto e : edges) {
+			graph.add_flow(e, min_cap);
+		}
+
+		flow += min_cap;
+	}
 
 	return flow;
 }
