@@ -3,9 +3,9 @@
 #include <algorithm>
 #include <memory>
 
-using std::vector;
-using std::cin;
-using std::cout;
+using namespace std;
+
+#define DEBUG 1
 
 class MaxMatching {
  public:
