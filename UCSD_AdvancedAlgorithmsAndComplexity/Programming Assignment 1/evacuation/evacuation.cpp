@@ -4,7 +4,7 @@
 
 using namespace std;
 
-#define DEBUG 1
+#define DEBUG 0
 
 // This class implements a bit unusual scheme for storing edges of the graph,
 // in order to retrieve the backward edge for a given edge quickly
@@ -22,11 +22,8 @@ public:
 	struct Edge {
 		int from, to, capacity, flow;
 
-		// calculate residual capacity for forward edges
-		int getResFwd() const {return capacity - flow;};
-
-		// calculate residual capacity for backward edges
-		int getResBkwd() const {return flow;};
+		// calculate residual capacity
+		int getResidual() const {return capacity - flow;};
 	};
 
 private:
@@ -68,8 +65,11 @@ public:
 		cout << "Edge from " << edge.from << "->" << edge.to << ", c=" << edge.capacity << ", flow=" << edge.flow << endl;
 	}
 
+
+  vector<bool> dfs_visited_vertices;
 	bool dfs_path_helper(int vertex, vector<int>& path, vector<size_t>& edgeIndices) {
-		cout << "dfs_path_helper on vertex=" << vertex << endl;
+    dfs_visited_vertices[vertex] = true;
+
 		if (vertex < 0 || vertex >= graph.size()) {
 			return false;
 		}
@@ -83,18 +83,15 @@ public:
 		for (auto id : ids) {
 			Edge e = edges[id];
 			int residual_flow = 0;
-			if (id & 1) {
-				residual_flow = e.getResBkwd();
-			} else {
-				residual_flow = e.getResFwd();
-			}
+      residual_flow = e.getResidual();
 			if (residual_flow > 0) {
-				cout << "check to " << e.to << endl;
-				if (dfs_path_helper(e.to, path, edgeIndices)) {
-					path.push_back(vertex);
-					edgeIndices.push_back(id);
-					return true;
-				}
+        if (!dfs_visited_vertices[e.to]) {
+  				if (dfs_path_helper(e.to, path, edgeIndices)) {
+  					path.push_back(vertex);
+  					edgeIndices.push_back(id);
+  					return true;
+  				}
+        }
 			}
 		}
 
@@ -106,6 +103,8 @@ public:
 		// Depth-First-Search algorithm. Then return indices of vertexes of this
 		// path
 
+    dfs_visited_vertices.clear();
+    dfs_visited_vertices = vector<bool>(graph.size(), false);
 		dfs_path_helper(0, path, edgeIndices);
 	}
 
@@ -138,19 +137,6 @@ FlowGraph read_data() {
 int max_flow(FlowGraph& graph, int from, int to) {
 	int flow = 0;
 
-#if DEBUG
-	cout << "Printing original graph edges" << endl;
-	for (int i = 0; i < graph.size(); i++) {
-		vector<size_t> ids = graph.get_ids(i);
-		cout << i << "\n";
-		for (int j = 0; j < ids.size(); j++) {
-			cout << "\t" << ids[j] << " ";
-			graph.print_edge(ids[j]);
-		}
-		cout << endl;
-	}
-#endif
-
 	// NOTE we can reuse graph as the residual graph
 	// f <- 0
 	// repeat:
@@ -161,13 +147,24 @@ int max_flow(FlowGraph& graph, int from, int to) {
 	//   g flow with g_e = X for e in P
 	//   f <- f + g
 
+  int iteration = 0;
 	while(true) {
 		vector<int> path;
 		vector<size_t> edges;
+
+#if DEBUG
+  	for (int i = 0; i < graph.size(); i++) {
+  		vector<size_t> ids = graph.get_ids(i);
+  		cout << i << "\n";
+  		for (int j = 0; j < ids.size(); j++) {
+  			cout << "\t" << ids[j] << " ";
+  			graph.print_edge(ids[j]);
+  		}
+  		cout << endl;
+  	}
+#endif
+
 		graph.find_dfs_path(path, edges);
-		for (auto v : path) {
-			cout << v << " ";
-		} cout << endl;
 
 		if (path.size() == 0) {
 			return flow;
@@ -175,25 +172,19 @@ int max_flow(FlowGraph& graph, int from, int to) {
 
 		int min_cap = INT_MAX;
 		for (auto eid : edges) {
-			if (eid & 1) {
-				if (graph.get_edge(eid).getResBkwd() < min_cap) {
-					min_cap = graph.get_edge(eid).getResBkwd();
-				}
-			} else {
-				if (graph.get_edge(eid).getResFwd() < min_cap) {
-					min_cap = graph.get_edge(eid).getResFwd();
-				}
+			if (graph.get_edge(eid).getResidual() < min_cap) {
+				min_cap = graph.get_edge(eid).getResidual();
 			}
 		}
 
 		// get X ... minimum capacity alone the path
-		cout << "minimum capcacity alone the path is " << min_cap << endl;
 
 		for (auto e : edges) {
 			graph.add_flow(e, min_cap);
 		}
 
 		flow += min_cap;
+    iteration++;
 	}
 
 	return flow;
