@@ -30,7 +30,7 @@ const int maxnode=20000+5;
 const int maxedge=1000000+5;
 
 int nleft,nright,nedge;
-int head[maxnode],point[maxedge],next[maxedge];
+int head[maxnode],point[maxedge],nexte[maxedge];
 int p1[maxnode],p2[maxnode];
 bool visited[maxnode];
 
@@ -49,11 +49,11 @@ void init(int _nleft,int _nright)
 }
 void addedge(int u,int v)
 {
-	point[nedge]=v,next[nedge]=head[u],head[u]=(nedge++);
+	point[nedge]=v,nexte[nedge]=head[u],head[u]=(nedge++);
 }
 bool find_path(int v)
 {
-	for (int k=head[v];k>=0;k=next[k])
+	for (int k=head[v];k>=0;k=nexte[k])
 	{
 		int p=point[k];
 		if (!visited[p])
@@ -72,7 +72,7 @@ bool find_path(int v)
 int doMatch()
 {
 	for (int i=0;i<nleft;i++)
-		for (int k=head[i];p1[i]<0 && k>=0;k=next[k])
+		for (int k=head[i];p1[i]<0 && k>=0;k=nexte[k])
 			if (p2[point[k]]<0)
 			{
 				p1[i]=point[k];
@@ -104,18 +104,18 @@ bool isUpper(int x,int y)
 
 int main()
 {
-//	freopen("C.in","r",stdin);
-//	freopen("C-small-attempt0.in","r",stdin);freopen("C-small-attempt0.out","w",stdout);
-//	freopen("C-small-attempt1.in","r",stdin);freopen("C-small-attempt1.out","w",stdout);
-// freopen("C-large.in","r",stdin);freopen("C-large.out","w",stdout);
-// freopen("C-large-practice.in","r",stdin);freopen("C-large-practice.out","w",stdout);
-
 	scanf("%d%d",&n,&m);
-	for (int i=0;i<n;i++) for (int j=0;j<m;j++) scanf("%d",&A[i][j]);
+	for (int i=0;i<n;i++) {
+		for (int j=0;j<m;j++) {
+			scanf("%d",&A[i][j]);
+		}
+	}
 	init(n,n);
 	for (int i=0;i<n;i++) for (int j=0;j<n;j++)
-		if (isUpper(i,j))
+		if (isUpper(i,j)) {
 			addedge(i,j);
+		}
+
 	int c=doMatch();
 	printf("%d\n",n-c);
 

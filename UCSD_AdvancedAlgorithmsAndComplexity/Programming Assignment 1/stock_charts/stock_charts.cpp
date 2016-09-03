@@ -1,79 +1,123 @@
-#include <iostream>
 #include <vector>
+#include <list>
+#include <map>
+#include <set>
+#include <deque>
+#include <queue>
+#include <stack>
+#include <bitset>
 #include <algorithm>
-#include <memory>
+#include <functional>
+#include <numeric>
+#include <utility>
+#include <sstream>
+#include <iostream>
+#include <iomanip>
+#include <cstdio>
+#include <cmath>
+#include <cstdlib>
+#include <cctype>
+#include <string>
+#include <cstring>
+#include <cstdio>
+#include <cmath>
+#include <cstdlib>
+#include <ctime>
 
-using std::vector;
-using std::cin;
-using std::cout;
+using namespace std;
 
-class StockCharts {
- public:
-  void Solve() {
-    vector<vector<int>> stock_data = ReadData();
-    int result = MinCharts(stock_data);
-    WriteResponse(result);
-  }
+const int maxnode=20000+5;
+const int maxedge=1000000+5;
 
- private:
-  vector<vector<int>> ReadData() {
-    int num_stocks, num_points;
-    cin >> num_stocks >> num_points;
-    vector<vector<int>> stock_data(num_stocks, vector<int>(num_points));
-    for (int i = 0; i < num_stocks; ++i)
-      for (int j = 0; j < num_points; ++j) {
-        cin >> stock_data[i][j];
-      }
-    return stock_data;
-  }
+int nleft,nright,nedge;
+int head[maxnode],point[maxedge],nexte[maxedge];
+int p1[maxnode],p2[maxnode];
+bool visited[maxnode];
 
-  void WriteResponse(int result) {
-    cout << result << "\n";
-  }
+void clear()
+{
+	for (int i=0;i<nleft;i++) p1[i]=-1;
+	for (int i=0;i<nright;i++) p2[i]=-1;
+}
+void init(int _nleft,int _nright)
+{
+	nleft=_nleft;
+	nright=_nright;
+	nedge=0;
+	for (int i=0;i<nleft;i++) head[i]=-1;
+	clear();
+}
+void addedge(int u,int v)
+{
+	point[nedge]=v,nexte[nedge]=head[u],head[u]=(nedge++);
+}
+bool find_path(int v)
+{
+	for (int k=head[v];k>=0;k=nexte[k])
+	{
+		int p=point[k];
+		if (!visited[p])
+		{
+			visited[p]=true;
+			if (p2[p]<0 || find_path(p2[p]))
+			{
+				p1[v]=p;
+				p2[p]=v;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+int doMatch()
+{
+	for (int i=0;i<nleft;i++)
+		for (int k=head[i];p1[i]<0 && k>=0;k=nexte[k])
+			if (p2[point[k]]<0)
+			{
+				p1[i]=point[k];
+				p2[point[k]]=i;
+			}
+	for (int i=0;i<nleft;i++) if (p1[i]<0)
+	{
+		for (int k=0;k<nright;k++) visited[k]=false;
+		find_path(i);
+	}
+	int result=0;
+	for (int i=0;i<nleft;i++) if (p1[i]>=0) result++;
+	return result;
+}
 
-  int MinCharts(const vector<vector<int>>& stock_data) {
-    // Replace this incorrect greedy algorithm with an
-    // algorithm that correctly finds the minimum number
-    // of charts on which we can put all the stock data
-    // without intersections of graphs on one chart.
+const int maxn=100+5;
+const int maxm=100+5;
 
-    int num_stocks = stock_data.size();
-    // Vector of charts; each chart is a vector of indices of individual stocks.
-    vector<vector<int>> charts;
-    for (int i = 0; i < stock_data.size(); ++i) {
-      bool added = false;
-      for (auto& chart : charts) {
-        bool can_add = true;
-        for (int index : chart)
-          if (!compare(stock_data[i], stock_data[index]) &&
-              !compare(stock_data[index], stock_data[i])) {
-            can_add = false;
-            break;
-          }
-        if (can_add) {
-          chart.push_back(i);
-          added = true;
-          break;
-        }
-      }
-      if (!added) {
-        charts.emplace_back(vector<int>{i});
-      }
-    }
-    return charts.size();
-  }
+int n,m;
+int A[maxn][maxm];
 
-  bool compare(const vector<int>& stock1, const vector<int>& stock2) {
-    for (int i = 0; i < stock1.size(); ++i)
-      if (stock1[i] >= stock2[i])
-        return false;
-    return true;
-  }
-};
+bool isUpper(int x,int y)
+{
+	for (int i=0;i<m;i++)
+		if (A[x][i]<=A[y][i])
+			return false;
+	return true;
+}
 
-int main() {
-  std::ios_base::sync_with_stdio(false);
-  StockCharts stock_charts;
-  stock_charts.Solve();
-  return 0;
+int main()
+{
+	scanf("%d%d",&n,&m);
+	for (int i=0;i<n;i++) {
+		for (int j=0;j<m;j++) {
+			scanf("%d",&A[i][j]);
+		}
+	}
+	init(n,n);
+	for (int i=0;i<n;i++) for (int j=0;j<n;j++)
+		if (isUpper(i,j)) {
+			addedge(i,j);
+		}
+
+	int c=doMatch();
+	printf("%d\n",n-c);
+
+	return 0;
 }
