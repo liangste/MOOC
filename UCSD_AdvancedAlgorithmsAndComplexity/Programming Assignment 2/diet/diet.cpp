@@ -2,8 +2,10 @@
 #include <iostream>
 #include <vector>
 #include <cstdio>
-using namespace std;
+#include <limits>
 
+using namespace std;
+#define DEBUG 1
 typedef vector<vector<double>> Matrix_t;
 
 void sub_row_from_rows(vector<vector<double> >& matrix, int r, int c) {
@@ -64,39 +66,153 @@ vector<double> show_solution(vector<vector<double> >& matrix) {
 	return sol;
 }
 
-pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A, vector<double> b, vector<double> c) {
-  // Write your code here
+vector<vector<int> > getAllSubsets(vector<int> set)
+{
+    vector< vector<int> > subset;
+    vector<int> empty;
+    subset.push_back( empty );
 
-  // solve subset of marix A, use subset matrix n by n to get a vertex to be used
-  // by our simplex algorithm, if cannot be solved, then we don't have a solution
-  if ((n < m))
-    return {1, vector<double>(m, 0)};
+    for (int i = 0; i < set.size(); i++)
+    {
+        vector< vector<int> > subsetTemp = subset;
 
-  vector<double> vertex;
-  if (n > 0) {
-    // get m by m subset matrix
-		vector<vector<double> > subset_matrix(m, vector<double>(m));
-		for (int i = 0; i < m; i++) {
-      subset_matrix[i] = A[i];
-      subset_matrix[i].push_back(b[i]);
+        for (int j = 0; j < subsetTemp.size(); j++)
+            subsetTemp[j].push_back( set[i] );
+
+        for (int j = 0; j < subsetTemp.size(); j++)
+            subset.push_back( subsetTemp[j] );
     }
-		solve(subset_matrix);
-		vertex = show_solution(subset_matrix);
+    return subset;
+}
+
+vector<vector<int> > getSizedSubsets(vector<vector<int> >& all_sets, int size) {
+	vector<vector<int> > subset;
+	for (int i = 0; i < all_sets.size(); i++)
+		if (all_sets[i].size() == size)
+			subset.push_back(all_sets[i]);
+	return subset;
+}
+
+bool isValidSolution(Matrix_t& A, vector<double>& b, vector<double>& sol) {
+
+	if (sol.size() == 0)
+		return false;
+
+	double tmp;
+	for (int i = 0; i < A.size(); i++) {
+		tmp = 0.0F;
+		for (int j = 0; j < A[i].size(); j++) {
+			tmp += A[i][j] * sol[j];
+		}
+		if (tmp > b[i])
+			return false;
+	}
+	return true;
+}
+
+double getPleasure(vector<double>& vertex, vector<double>& c) {
+	double p = 0.0;
+	for (int i = 0; i < vertex.size(); i++) {
+		p += vertex[i] * c[i];
+	}
+	return p;
+}
+
+double VeryBigNumber = 1000000000.0;
+
+pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A,
+	vector<double> b, vector<double> c) {
+
+	vector<double> vertex;
+	vector<double> sol_vertex;
+
+	if (m <= 0 || n <= 0) {
+		return {-1, sol_vertex};
 	}
 
-  if (vertex.size() == 0)
-    return {-1, vector<double>(m, 0)};
+	// build matrix of n + m inequalities
+	for (int i = 0; i < m; i++) {
+		vector<double> new_row(m, 0.0);
+		new_row[i] = -1.0;
+		A.push_back(new_row);
+	}
 
-  // apply constraint that vertices amounts must be positive
-  for (int i = 0; i < vertex.size(); i++)
-    if (vertex[i] <= 0)
-      vertex[i] = 0.0;
+	vector<int> set;
 
-  for (int i = 0; i < vertex.size(); i++)
-    cout << vertex[i] << " ";
-  cout << endl;
+	for (int i = 0; i < A.size(); i++)
+		set.push_back(i);
 
-  return {0, vector<double>(m, 0)};
+	vector<vector<int> > all_subsets = getAllSubsets(set);
+	vector<vector<int> > subsets = getSizedSubsets(all_subsets, m);
+
+	volatile double optimal_pleasure = std::numeric_limits<double>::min();
+	vector<vector<double> > subset_matrix;
+	volatile double p;
+	volatile bool found_sol = false;
+	for (int s = 0; s < subsets.size(); s++) {
+		subset_matrix.clear();
+		for (int i = 0; i < subsets[s].size(); i++) {
+			subset_matrix.push_back(A[subsets[s][i]]);
+			subset_matrix[i].push_back(b[subsets[s][i]]);
+		}
+
+		solve(subset_matrix);
+		vertex = show_solution(subset_matrix);
+
+#if DEBUG
+		cout << "check if valid solution ";
+		for (int i = 0; i < vertex.size(); i++) {
+			cout << vertex[i] << " ";
+		} cout << endl;
+#endif
+
+		if (isValidSolution(A, b, vertex)) {
+			found_sol = true;
+			// check if largest
+			p = getPleasure(vertex, c);
+
+#if DEBUG
+			cout << " has pleasure " << p << endl;
+#endif
+
+			if (p > optimal_pleasure) {
+#if DEBUG
+				cout << "  greater than current optimal " << optimal_pleasure << endl;
+#endif
+				optimal_pleasure = p;
+				sol_vertex = vertex;
+			}
+		}
+	}
+
+	// add row of 1, 1, ... 1, 1 to solve the Infinity problem
+	A.push_back(vector<double>(m, 1.0));
+	b.push_back(VeryBigNumber);
+	all_subsets = getAllSubsets(set);
+	subsets = getSizedSubsets(all_subsets, m);
+
+	bool infinity = false;
+	for (int s = 0; s < subsets.size(); s++) {
+		subset_matrix.clear();
+		for (int i = 0; i < subsets[s].size(); i++) {
+			subset_matrix.push_back(A[subsets[s][i]]);
+			subset_matrix[i].push_back(b[subsets[s][i]]);
+		}
+		solve(subset_matrix);
+		vertex = show_solution(subset_matrix);
+		if (isValidSolution(A, b, vertex)) {
+			infinity = true;
+			break;
+		}
+	}
+
+	if (infinity)
+		return {1, sol_vertex};
+
+	if (found_sol)
+		return {0, sol_vertex};
+	else
+		return {-1, sol_vertex};
 }
 
 int main(){
