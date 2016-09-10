@@ -7,6 +7,9 @@
 using namespace std;
 #define DEBUG 0
 
+// NOTE by the way my Gaussian elimination doesn't tell cases between
+// single solution, multiple solution and no solution...
+
 void sub_row_from_rows(vector<vector<double> >& matrix, int r, int c) {
 	vector<double> sub_vec(matrix[r].size());
 	double scale;
@@ -125,11 +128,13 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 	vector<double> vertex;
 	vector<double> sol_vertex;
 
+	/*
 	if (n <= 0) // no constraints but >= 0
 		return {1, sol_vertex};
 
 	if (m <= 0) // nothing to solve
 		return {-1, sol_vertex}; // no solution
+	*/
 
 	// build matrix of n + m inequalities
 	for (int i = 0; i < m; i++) {
