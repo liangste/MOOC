@@ -13,7 +13,6 @@ using namespace std;
 void sub_row_from_rows(vector<vector<double> >& matrix, int r, int c) {
 	vector<double> sub_vec(matrix[r].size());
 	double scale;
-
 	for (int target_row = 0; target_row < matrix.size(); target_row++) {
 		if ((target_row != r) && (matrix[target_row][c] != 0)) {
 			scale = matrix[target_row][c] / matrix[r][c];
@@ -63,8 +62,17 @@ void solve(vector<vector<double> >& matrix) {
 
 vector<double> show_solution(vector<vector<double> >& matrix) {
   vector<double> sol;
+
+	double double_one = 1.0;
+	for (int r = 0; r < matrix.size(); r++) {
+		if (matrix[r][r] != double_one) {
+			return sol;
+		}
+	}
+
 	for (int r = 0; r < matrix.size(); r++)
 		sol.push_back(matrix[r][matrix.size()]);
+
 	return sol;
 }
 
@@ -280,7 +288,7 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 	if (infinity)
 		return {1, sol_vertex};
 
-	if (found_sol)
+	if (found_sol && sol_vertex.size() > 0)
 		return {0, sol_vertex};
 	else
 		return {-1, sol_vertex}; // no solution
