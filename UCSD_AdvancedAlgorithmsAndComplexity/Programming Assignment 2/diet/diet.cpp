@@ -5,8 +5,7 @@
 #include <limits>
 
 using namespace std;
-#define DEBUG 1
-typedef vector<vector<double>> Matrix_t;
+#define DEBUG 0
 
 void sub_row_from_rows(vector<vector<double> >& matrix, int r, int c) {
 	vector<double> sub_vec(matrix[r].size());
@@ -93,7 +92,7 @@ vector<vector<int> > getSizedSubsets(vector<vector<int> >& all_sets, int size) {
 	return subset;
 }
 
-bool isValidSolution(Matrix_t& A, vector<double>& b, vector<double>& sol) {
+bool isValidSolution(vector<vector<double>>& A, vector<double>& b, vector<double>& sol) {
 
 	if (sol.size() == 0)
 		return false;
@@ -120,21 +119,24 @@ double getPleasure(vector<double>& vertex, vector<double>& c) {
 
 double VeryBigNumber = 1000000000.0;
 
-pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A,
-	vector<double> b, vector<double> c) {
+pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>>& A,
+	vector<double>& b, vector<double>& c) {
 
 	vector<double> vertex;
 	vector<double> sol_vertex;
 
-	if (m <= 0 || n <= 0) {
-		return {-1, sol_vertex};
-	}
+	if (n <= 0) // no constraints but >= 0
+		return {1, sol_vertex};
+
+	if (m <= 0) // nothing to solve
+		return {-1, sol_vertex}; // no solution
 
 	// build matrix of n + m inequalities
 	for (int i = 0; i < m; i++) {
 		vector<double> new_row(m, 0.0);
 		new_row[i] = -1.0;
 		A.push_back(new_row);
+		b.push_back(0.0);
 	}
 
 	vector<int> set;
@@ -144,6 +146,17 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A,
 
 	vector<vector<int> > all_subsets = getAllSubsets(set);
 	vector<vector<int> > subsets = getSizedSubsets(all_subsets, m);
+
+#if DEBUG
+		cout << "Showing constraint matrix" << endl;;
+		for (int i = 0; i < A.size(); i++) {
+			cout << "  ";
+			for (int j = 0; j < A[i].size(); j++) {
+				cout << A[i][j] << " ";
+			}
+			cout << b[i] << endl;
+		}
+#endif
 
 	volatile double optimal_pleasure = std::numeric_limits<double>::min();
 	vector<vector<double> > subset_matrix;
@@ -156,13 +169,25 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A,
 			subset_matrix[i].push_back(b[subsets[s][i]]);
 		}
 
+#if DEBUG
+		cout << "Solving sub-matrix" << endl;;
+		for (int i = 0; i < subset_matrix.size(); i++) {
+			cout << "| ";
+			for (int j = 0; j < subset_matrix[i].size(); j++) {
+				cout << subset_matrix[i][j] << " ";
+			}
+			cout << endl;
+		}
+#endif
+
 		solve(subset_matrix);
+		vertex.clear();
 		vertex = show_solution(subset_matrix);
 
 #if DEBUG
-		cout << "check if valid solution ";
+		cout << " found solution ";
 		for (int i = 0; i < vertex.size(); i++) {
-			cout << vertex[i] << " ";
+			cout << vertex[i] << ", ";
 		} cout << endl;
 #endif
 
@@ -170,15 +195,7 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A,
 			found_sol = true;
 			// check if largest
 			p = getPleasure(vertex, c);
-
-#if DEBUG
-			cout << " has pleasure " << p << endl;
-#endif
-
 			if (p > optimal_pleasure) {
-#if DEBUG
-				cout << "  greater than current optimal " << optimal_pleasure << endl;
-#endif
 				optimal_pleasure = p;
 				sol_vertex = vertex;
 			}
@@ -186,8 +203,26 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A,
 	}
 
 	// add row of 1, 1, ... 1, 1 to solve the Infinity problem
+	int augmented_index = A.size();
 	A.push_back(vector<double>(m, 1.0));
 	b.push_back(VeryBigNumber);
+
+#if DEBUG
+		cout << "Showing augmented-constraint matrix" << endl;;
+		for (int i = 0; i < A.size(); i++) {
+			cout << "  ";
+			for (int j = 0; j < A[i].size(); j++) {
+				cout << A[i][j] << " ";
+			}
+			cout << b[i] << endl;
+		}
+#endif
+
+	set.clear();
+	all_subsets.clear();
+	subsets.clear();
+	for (int i = 0; i < A.size(); i++)
+		set.push_back(i);
 	all_subsets = getAllSubsets(set);
 	subsets = getSizedSubsets(all_subsets, m);
 
@@ -198,11 +233,42 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A,
 			subset_matrix.push_back(A[subsets[s][i]]);
 			subset_matrix[i].push_back(b[subsets[s][i]]);
 		}
+
+#if DEBUG
+		cout << "Solving augmented sub-matrix from sub-sets: ";
+		for (int i = 0; i < subsets[s].size(); i++) {
+			cout << subsets[s][i] << " ";
+		} cout << endl;
+		for (int i = 0; i < subset_matrix.size(); i++) {
+			cout << "| ";
+			for (int j = 0; j < subset_matrix[i].size(); j++) {
+				cout << subset_matrix[i][j] << " ";
+			}
+			cout << endl;
+		}
+#endif
+
 		solve(subset_matrix);
+		vertex.clear();
 		vertex = show_solution(subset_matrix);
+
+#if DEBUG
+		cout << " found solution ";
+		for (int i = 0; i < vertex.size(); i++) {
+			cout << vertex[i] << ", ";
+		} cout << endl;
+#endif
+
 		if (isValidSolution(A, b, vertex)) {
-			infinity = true;
-			break;
+			for (int i = 0; i < subsets[s].size(); i++) {
+				if (subsets[s][i] == augmented_index) {
+					infinity = true;
+					break;
+				}
+			}
+
+			if (infinity)
+				break;
 		}
 	}
 
@@ -212,13 +278,13 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, Matrix_t A,
 	if (found_sol)
 		return {0, sol_vertex};
 	else
-		return {-1, sol_vertex};
+		return {-1, sol_vertex}; // no solution
 }
 
 int main(){
   int n, m;
   cin >> n >> m;
-  Matrix_t A(n, vector<double>(m));
+  vector<vector<double>> A(n, vector<double>(m));
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < m; j++) {
       cin >> A[i][j];
@@ -241,7 +307,7 @@ int main(){
       break;
     case 0:
       printf("Bounded solution\n");
-      for (int i = 0; i < m; i++) {
+      for (int i = 0; i < ans.second.size(); i++) {
         printf("%.18f%c", ans.second[i], " \n"[i + 1 == m]);
       }
       break;
