@@ -1,0 +1,114 @@
+GAU_ELIMINATE(A[0...n-1][0...n]){
+  //initialize result as vector of size n with all zero
+  for k=0 to n-1:
+  {
+    // find max element in column k of A
+    i_max=A[k][k]
+    for i=k to n-1:
+    {
+      if abs(A[i][k]) > abs(A[i_max])
+      {
+        i_imax=i
+      }
+    }
+    // check if singular, return result as no solution
+    if A[i_max] [k] ==0
+    {
+      return pair<false, result>
+    }
+    // swap row i_max with row k
+    temp=A[i_max] []
+    A[i_max] [] =A[k] []
+    A[k] [] =temp
+    // normalize row k
+    norm=A[k] [k]
+    for i=k to n:
+    {
+      A[k] [i] =A[k][i] / norm
+    }
+    // reduce all row below k
+    for i=k+1 to n-1
+    {
+      for j=k+1 to n
+      {
+        A[i][j]= A[i] [j] - A[k] [j] * A[i] [k]
+      }
+      A[i] [k] =0
+    }
+  }
+  result= column n of A
+  return pair<true, result>
+}
+
+LINEAR_SOLVER( C[0...m+n][0...m], D[0...m-1])
+{
+
+  // n : number of inequalities constraint
+  // m : number of variables
+  // C: matrix of coefficient, n row for the inequalities constraint given, m row for constraint on
+  //    non-negative variable, the last row of C for the infinity bound constraint
+  // The first m columns of C contain coefficient  A, last column contain coefficient B ( Ax<=B)
+  // D: coefficient of objective funtion
+
+  // initialize solution vector
+  Solution[0...m-1]
+  // initialize objective value
+  Obj = - infinity
+  // initialize boolean to mark if solution bounded
+  is_bounded=false;
+  // initialize int to mark if there’s solution
+  // is_feasible = -1 : no solution
+  // is_feasible = 0 : solution is bounded
+  // is_feasible = 1: unbounded solution
+  Is_feasible=-1;
+
+  For each subset of size m of the set (m+n+1) constraints, get corresponding coefficient
+  matrix A[0...m-1][0...m], the rest of the coefficient is B[0...n][0...m]
+  {
+      // solve system of equation corresponding to the set m
+      pair<has_solution,sys_sol>=GAU_ELIMINATE (A[0...m-1][0...m])
+
+      // check if exist solution
+      If (has_solution==true)
+      {
+          // check if solution satisfies other inequality constraints
+          If ( B[0...n][0...m-1]*sys_sol < B[0...n][m] +10^-3)
+          {
+            // check if new objective value bigger than current one
+            If ( D*sys_sol > Obj)
+            {
+                // update objective value
+                Obj=D*sys_sol
+                // update solution
+                Solution = sys_sol
+                // check if infinity constraint belongs to set A
+                If ( C[m+n][0...m] NOT belong to A)
+                { is_bounded=true}
+                Else { is_bounded=false}
+            }
+
+          }
+      }
+  }
+
+  // check objective value to determine there’s solution or not
+  If (Obj != - infinity)
+  {
+  // Obj != infinity → there’s solution
+  // check if objective function is bounded
+  If ( is_bounded==true)
+  {
+  is_feasible=0
+
+          }
+          Else
+          {
+              Is_feasible =1
+
+          }
+  }
+
+// return solution
+Return pair<is_feasible, Solution>
+
+}

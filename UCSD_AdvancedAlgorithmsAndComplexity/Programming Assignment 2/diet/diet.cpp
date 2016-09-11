@@ -7,24 +7,25 @@
 using namespace std;
 #define DEBUG 0
 
-// NOTE by the way my Gaussian elimination doesn't tell cases between
-// single solution, multiple solution and no solution...
+double VeryBigNumber = 9000000000.0;
+
+///
+///		Guassian Elimination
+///
+typedef enum GaussianEliminationResultEnum {
+	SingleSolution = 0,
+	NoSolution,
+	MultipleSolutions
+} GaussianEliminationResult_t;
 
 void sub_row_from_rows(vector<vector<double> >& matrix, int r, int c) {
 	vector<double> sub_vec(matrix[r].size());
 	double scale;
 	for (int target_row = 0; target_row < matrix.size(); target_row++) {
-		if ((target_row != r) && (matrix[target_row][c] != 0)) {
+		if ((target_row != r) && (matrix[target_row][c] != 0.0)) {
 			scale = matrix[target_row][c] / matrix[r][c];
-			std::copy(
-				matrix[r].begin(),
-				matrix[r].end(),
-				sub_vec.begin());
-			std::transform(
-				sub_vec.begin(),
-				sub_vec.end(),
-				sub_vec.begin(),
-				std::bind1st(std::multiplies<double>(), scale));
+			std::copy(matrix[r].begin(), matrix[r].end(), sub_vec.begin());
+			std::transform(sub_vec.begin(), sub_vec.end(), sub_vec.begin(), std::bind1st(std::multiplies<double>(), scale));
 			// subtract vector
 			for (int i = 0; i < matrix[target_row].size(); i++) {
 				matrix[target_row][i] -= sub_vec[i];
@@ -43,12 +44,12 @@ void solve(vector<vector<double> >& matrix) {
 					std::swap(matrix[np_row_start], matrix[r]);
 
 				// scale entire row so that matrix[r][c] is 1
-				if (matrix[np_row_start][c] != 1)
+				if (matrix[np_row_start][c] != 1.0)
 					std::transform(
 						matrix[np_row_start].begin(),
 						matrix[np_row_start].end(),
 						matrix[np_row_start].begin(),
-						std::bind1st(std::multiplies<double>(), 1 / matrix[np_row_start][c]));
+						std::bind1st(std::multiplies<double>(), 1.0 / matrix[np_row_start][c]));
 
 				// subtract so that other rows of this column are all 0
 				sub_row_from_rows(matrix, np_row_start, c);
@@ -75,6 +76,10 @@ vector<double> show_solution(vector<vector<double> >& matrix) {
 
 	return sol;
 }
+
+///
+///		Finding all subsets of a set
+///
 
 vector<vector<int> > getAllSubsets(vector<int> set)
 {
@@ -103,6 +108,10 @@ vector<vector<int> > getSizedSubsets(vector<vector<int> >& all_sets, int size) {
 	return subset;
 }
 
+///
+///		Helper Functions
+///
+
 bool isValidSolution(vector<vector<double>>& A, vector<double>& b, vector<double>& sol) {
 
 	if (sol.size() == 0)
@@ -114,7 +123,7 @@ bool isValidSolution(vector<vector<double>>& A, vector<double>& b, vector<double
 		for (int j = 0; j < A[i].size(); j++) {
 			tmp += A[i][j] * sol[j];
 		}
-		if (tmp > b[i])
+		if (tmp > (b[i] + 0.001))
 			return false;
 	}
 	return true;
@@ -128,23 +137,22 @@ double getPleasure(vector<double>& vertex, vector<double>& c) {
 	return p;
 }
 
-double VeryBigNumber = 1000000000.0;
+///
+///		Main Task
+///
 
 pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>>& A,
 	vector<double>& b, vector<double>& c) {
 
 	vector<double> vertex;
 	vector<double> sol_vertex;
+	vector<double> aug_sol_vertex;
+	vector<int> set;
+	vector<vector<int> > all_subsets;
+	vector<vector<int> > subsets;
 
-	/*
-	if (n <= 0) // no constraints but >= 0
-		return {1, sol_vertex};
-
-	if (m <= 0) // nothing to solve
-		return {-1, sol_vertex}; // no solution
-	*/
-
-	// build matrix of n + m inequalities
+	// build matrix of n + m inequalities by adding m greater-or-equal to 0 constraints
+	// to all variables
 	for (int i = 0; i < m; i++) {
 		vector<double> new_row(m, 0.0);
 		new_row[i] = -1.0;
@@ -152,13 +160,14 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 		b.push_back(0.0);
 	}
 
-	vector<int> set;
-
+	// add all indices to rows into a set
+	set.clear();
 	for (int i = 0; i < A.size(); i++)
 		set.push_back(i);
 
-	vector<vector<int> > all_subsets = getAllSubsets(set);
-	vector<vector<int> > subsets = getSizedSubsets(all_subsets, m);
+	// get all subsets of size m from the set
+	all_subsets = getAllSubsets(set);
+	subsets = getSizedSubsets(all_subsets, m);
 
 #if DEBUG
 		cout << "Showing constraint matrix" << endl;;
@@ -175,6 +184,8 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 	vector<vector<double> > subset_matrix;
 	volatile double p;
 	volatile bool found_sol = false;
+
+	// loop over all possible combination of m rows from constrait matrix
 	for (int s = 0; s < subsets.size(); s++) {
 		subset_matrix.clear();
 		for (int i = 0; i < subsets[s].size(); i++) {
@@ -196,6 +207,7 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 		solve(subset_matrix);
 		vertex.clear();
 		vertex = show_solution(subset_matrix);
+		// do we need to distinguish between multiple solution and no solution here?
 
 #if DEBUG
 		cout << " found solution ";
@@ -238,8 +250,10 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 		set.push_back(i);
 	all_subsets = getAllSubsets(set);
 	subsets = getSizedSubsets(all_subsets, m);
+	optimal_pleasure = std::numeric_limits<double>::min();
+	volatile bool found_aug_sol = false;
+	vector<vector<int> > aug_sol_subsets;
 
-	bool infinity = false;
 	for (int s = 0; s < subsets.size(); s++) {
 		subset_matrix.clear();
 		for (int i = 0; i < subsets[s].size(); i++) {
@@ -273,20 +287,45 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 #endif
 
 		if (isValidSolution(A, b, vertex)) {
-			for (int i = 0; i < subsets[s].size(); i++) {
-				if (subsets[s][i] == augmented_index) {
-					infinity = true;
-					break;
-				}
+			found_aug_sol = true;
+			// check if largest
+			p = getPleasure(vertex, c);
+			// another optimal
+			if (p >= (optimal_pleasure - 0.001) && p <= (optimal_pleasure + 0.001)) {
+				aug_sol_subsets.push_back(subsets[s]);
+			} else if (p > (optimal_pleasure + 0.001)) { // different optimal
+				optimal_pleasure = p;
+				aug_sol_vertex = vertex;
+				aug_sol_subsets.clear();
+				aug_sol_subsets.push_back(subsets[s]);
 			}
-
-			if (infinity)
-				break;
 		}
 	}
 
-	if (infinity)
+#if DEBUG
+	cout << "augmented_index = " << augmented_index;
+	cout << " and aug_sol_subset = {";
+	for (int i = 0; i < aug_sol_subsets.size(); i++) {
+		cout << aug_sol_subsets[i] << ", ";
+	}
+	cout << "}" << endl;
+#endif
+
+	int infinite_optimal_count = 0;
+	for (int i = 0; i < aug_sol_subsets.size(); i++) {
+		if (std::find(
+					aug_sol_subsets[i].begin(),
+					aug_sol_subsets[i].end(),
+					augmented_index) != aug_sol_subsets[i].end()) {
+
+			infinite_optimal_count++;
+		}
+	}
+
+	if (aug_sol_subsets.size() != 0 && aug_sol_subsets.size() == infinite_optimal_count)
+	{
 		return {1, sol_vertex};
+	}
 
 	if (found_sol && sol_vertex.size() > 0)
 		return {0, sol_vertex};
