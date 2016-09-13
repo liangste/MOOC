@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <assert.h>
 #include <iostream>
 #include <vector>
 #include <cstdio>
@@ -7,7 +8,8 @@
 using namespace std;
 #define DEBUG 0
 
-double VeryBigNumber = 9000000000.0;
+double VeryBigNumber = 1000000000.0;
+double tolerance = 0.0001;
 
 ///
 ///		Guassian Elimination
@@ -61,43 +63,51 @@ void solve(vector<vector<double> >& matrix) {
 	}
 }
 
-vector<double> show_solution(vector<vector<double> >& matrix) {
-  vector<double> sol;
+bool AreSame(double a, double b)
+{
+		return fabs(a - b) < tolerance;
+}
 
-	double double_one = 1.0;
+GaussianEliminationResultEnum show_solution(vector<vector<double> >& matrix, vector<double>& sol) {
+	double double_one = 1.0f;
 	for (int r = 0; r < matrix.size(); r++) {
-		if (matrix[r][r] != double_one) {
-			return sol;
+		assert(matrix.size() == matrix[r].size() - 1);
+		if (!AreSame(matrix[r][r], double_one)) {
+			for (int c = 0; c < matrix[r].size(); c++) {
+				if (matrix[r][c] != 0.0) {
+					return NoSolution;
+				}
+			}
+			return MultipleSolutions;
 		}
 	}
 
 	for (int r = 0; r < matrix.size(); r++)
 		sol.push_back(matrix[r][matrix.size()]);
 
-	return sol;
+	return SingleSolution;
 }
-
 ///
 ///		Finding all subsets of a set
 ///
 
 vector<vector<int> > getAllSubsets(vector<int> set)
 {
-    vector< vector<int> > subset;
-    vector<int> empty;
-    subset.push_back( empty );
+		vector< vector<int> > subset;
+		vector<int> empty;
+		subset.push_back( empty );
 
-    for (int i = 0; i < set.size(); i++)
-    {
-        vector< vector<int> > subsetTemp = subset;
+		for (int i = 0; i < set.size(); i++)
+		{
+				vector< vector<int> > subsetTemp = subset;
 
-        for (int j = 0; j < subsetTemp.size(); j++)
-            subsetTemp[j].push_back( set[i] );
+				for (int j = 0; j < subsetTemp.size(); j++)
+						subsetTemp[j].push_back( set[i] );
 
-        for (int j = 0; j < subsetTemp.size(); j++)
-            subset.push_back( subsetTemp[j] );
-    }
-    return subset;
+				for (int j = 0; j < subsetTemp.size(); j++)
+						subset.push_back( subsetTemp[j] );
+		}
+		return subset;
 }
 
 vector<vector<int> > getSizedSubsets(vector<vector<int> >& all_sets, int size) {
@@ -117,13 +127,13 @@ bool isValidSolution(vector<vector<double>>& A, vector<double>& b, vector<double
 	if (sol.size() == 0)
 		return false;
 
-	double tmp;
+	long double tmp;
 	for (int i = 0; i < A.size(); i++) {
 		tmp = 0.0F;
 		for (int j = 0; j < A[i].size(); j++) {
 			tmp += A[i][j] * sol[j];
 		}
-		if (tmp > (b[i] + 0.001))
+		if (tmp > (b[i] + tolerance))
 			return false;
 	}
 	return true;
@@ -180,7 +190,7 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 		}
 #endif
 
-	volatile double optimal_pleasure = std::numeric_limits<double>::min();
+	volatile double optimal_pleasure = -std::numeric_limits<double>::max();
 	vector<vector<double> > subset_matrix;
 	volatile double p;
 	volatile bool found_sol = false;
@@ -206,26 +216,42 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 
 		solve(subset_matrix);
 		vertex.clear();
-		vertex = show_solution(subset_matrix);
+		GaussianEliminationResultEnum ge_result = show_solution(subset_matrix, vertex);
 		// do we need to distinguish between multiple solution and no solution here?
 
 #if DEBUG
+		cout << "result = " << ge_result << endl;
 		cout << " found solution ";
 		for (int i = 0; i < vertex.size(); i++) {
 			cout << vertex[i] << ", ";
 		} cout << endl;
 #endif
 
-		if (isValidSolution(A, b, vertex)) {
+		if (ge_result == SingleSolution && isValidSolution(A, b, vertex)) {
 			found_sol = true;
 			// check if largest
 			p = getPleasure(vertex, c);
-			if (p > optimal_pleasure) {
+#if DEBUG
+			cout << "Pleasure = " << p << endl;
+#endif
+			if (p > (optimal_pleasure + tolerance)) {
+#if DEBUG
+			cout << "Assigning new vertices" << endl;
+#endif
 				optimal_pleasure = p;
 				sol_vertex = vertex;
 			}
 		}
 	}
+
+#if DEBUG
+	cout << "Currently optimal pleasure at p = " << optimal_pleasure;
+	cout << " at vertices ";
+	for (int i = 0; i < sol_vertex.size(); i++) {
+		cout << sol_vertex[i] << " ";
+	}
+	cout << endl;
+#endif
 
 	// add row of 1, 1, ... 1, 1 to solve the Infinity problem
 	int augmented_index = A.size();
@@ -277,7 +303,7 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 
 		solve(subset_matrix);
 		vertex.clear();
-		vertex = show_solution(subset_matrix);
+		GaussianEliminationResultEnum ge_result = show_solution(subset_matrix, vertex);
 
 #if DEBUG
 		cout << " found solution ";
@@ -286,14 +312,14 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 		} cout << endl;
 #endif
 
-		if (isValidSolution(A, b, vertex)) {
+		if (ge_result == SingleSolution && isValidSolution(A, b, vertex)) {
 			found_aug_sol = true;
 			// check if largest
 			p = getPleasure(vertex, c);
 			// another optimal
-			if (p >= (optimal_pleasure - 0.001) && p <= (optimal_pleasure + 0.001)) {
+			if (AreSame(p, optimal_pleasure)) {
 				aug_sol_subsets.push_back(subsets[s]);
-			} else if (p > (optimal_pleasure + 0.001)) { // different optimal
+			} else if (p > (optimal_pleasure + tolerance)) { // different optimal
 				optimal_pleasure = p;
 				aug_sol_vertex = vertex;
 				aug_sol_subsets.clear();
@@ -301,15 +327,6 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 			}
 		}
 	}
-
-#if DEBUG
-	cout << "augmented_index = " << augmented_index;
-	cout << " and aug_sol_subset = {";
-	for (int i = 0; i < aug_sol_subsets.size(); i++) {
-		cout << aug_sol_subsets[i] << ", ";
-	}
-	cout << "}" << endl;
-#endif
 
 	int infinite_optimal_count = 0;
 	for (int i = 0; i < aug_sol_subsets.size(); i++) {
@@ -334,38 +351,38 @@ pair<int, vector<double>> solve_diet_problem(int n, int m, vector<vector<double>
 }
 
 int main(){
-  int n, m;
-  cin >> n >> m;
-  vector<vector<double>> A(n, vector<double>(m));
-  for (int i = 0; i < n; i++) {
-    for (int j = 0; j < m; j++) {
-      cin >> A[i][j];
-    }
-  }
-  vector<double> b(n);
-  for (int i = 0; i < n; i++) {
-    cin >> b[i];
-  }
-  vector<double> c(m);
-  for (int i = 0; i < m; i++) {
-    cin >> c[i];
-  }
+	int n, m;
+	cin >> n >> m;
+	vector<vector<double>> A(n, vector<double>(m));
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < m; j++) {
+			cin >> A[i][j];
+		}
+	}
+	vector<double> b(n);
+	for (int i = 0; i < n; i++) {
+		cin >> b[i];
+	}
+	vector<double> c(m);
+	for (int i = 0; i < m; i++) {
+		cin >> c[i];
+	}
 
-  pair<int, vector<double>> ans = solve_diet_problem(n, m, A, b, c);
+	pair<int, vector<double>> ans = solve_diet_problem(n, m, A, b, c);
 
-  switch (ans.first) {
-    case -1:
-      printf("No solution\n");
-      break;
-    case 0:
-      printf("Bounded solution\n");
-      for (int i = 0; i < ans.second.size(); i++) {
-        printf("%.18f%c", ans.second[i], " \n"[i + 1 == m]);
-      }
-      break;
-    case 1:
-      printf("Infinity\n");
-      break;
-  }
-  return 0;
+	switch (ans.first) {
+		case -1:
+			printf("No solution\n");
+			break;
+		case 0:
+			printf("Bounded solution\n");
+			for (int i = 0; i < ans.second.size(); i++) {
+				printf("%.18f%c", ans.second[i], " \n"[i + 1 == m]);
+			}
+			break;
+		case 1:
+			printf("Infinity\n");
+			break;
+	}
+	return 0;
 }
