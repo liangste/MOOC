@@ -3,45 +3,26 @@
 
 using namespace std;
 
-#define DEBUG 0
+#define DEBUG 1
 
 const vector<int> colors = {0, 1, 2};
 
 // x_ij
-// i == position in Hamiltonian path
-// j == node index
+// i == index of vertex
+// j == index of Hamiltonian path position
 
-int GetVarNum(int posIdx, int nodeIdx, int N) {
-	return N * posIdx + nodeIdx + 1;
+int GetVarNum(int i_v, int i_p, int N) {
+	return N * i_v + i_p + 1;
 };
 
 void PrintCNF(const vector<vector<bool> >& adjMatrix) {
 	int N = adjMatrix.size();
 	int nVars = N * N;
 	vector<vector<int> > clauses; // without 0 at end
+	vector<int> clause;
 
-	// each node must appear in the path
-	for (int j = 0; j < N; j++) {
-		vector<int> clause;
-		clause.clear();
-		for (int i = 0; i < N; i++) {
-			clause.push_back(GetVarNum(i, j, N));
-		}
-		clauses.push_back(clause);
-	}
-
-	// no node j appears twice in the path
-	for (int j = 0; j < N; j++) {
-		for (int i = 0; i < N; i++) {
-			for (int k = i + 1; k < N; k++) {
-				clauses.push_back({-GetVarNum(i, j, N), -GetVarNum(k, j, N)});
-			}
-		}
-	}
-
-	// every position i on the path must be occupied
+	// all vertices must be on the path
 	for (int i = 0; i < N; i++) {
-		vector<int> clause;
 		clause.clear();
 		for (int j = 0; j < N; j++) {
 			clause.push_back(GetVarNum(i, j, N));
@@ -49,7 +30,7 @@ void PrintCNF(const vector<vector<bool> >& adjMatrix) {
 		clauses.push_back(clause);
 	}
 
-	// no two noes j and k occupy the same position in the path
+	// each vertex must be visited exactly once
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = j + 1; k < N; k++) {
@@ -58,13 +39,24 @@ void PrintCNF(const vector<vector<bool> >& adjMatrix) {
 		}
 	}
 
-	// nonadjacent nodes i and j cannot be adjacent in the path
+	// there's only one vertex on each position
+	for (int j = 0; j < N; j++) {
+		for (int i = 0; i < N; i++) {
+			for (int k = i + 1; k < N; k++) {
+				clauses.push_back({-GetVarNum(i, j, N), -GetVarNum(k, j, N)});
+			}
+		}
+	}
+
+	// two successive vertices must be connected by an edge
+	// if no edge exists between vertices i and j, then they cannot be adjacent
+	// to each other in the Hamiltonian path
 	for (int i = 0; i < N; i++) {
-		for (int j = i + 1; j < N; j++) {
+		for (int j = 0; j < N; j++) {
 			if (!adjMatrix[i][j]) {
 				for (int k = 0; k < (N - 1); k++) {
-					clauses.push_back({-GetVarNum(k, i, N), -GetVarNum(k + 1, j, N)});
-					clauses.push_back({-GetVarNum(k, j, N), -GetVarNum(k + 1, i, N)});
+					clauses.push_back({-GetVarNum(i, k, N), -GetVarNum(j, k + 1, N)});
+					clauses.push_back({-GetVarNum(j, k, N), -GetVarNum(i, k + 1, N)});
 				}
 			}
 		}
