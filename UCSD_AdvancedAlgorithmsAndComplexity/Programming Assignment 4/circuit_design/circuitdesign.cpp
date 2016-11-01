@@ -110,9 +110,10 @@ int main(void) {
 			return 0;
 		}
 
+	// assign the satisfying assignments
 	vb assigned(g_adjList.size(), false);
-
 	priority_queue<SccNode, vector<SccNode>, greater<SccNode>> sccNodeQ;
+
 	LOOP(i, sccs.size())
 		sccNodeQ.push({i, sccs[i]});
 
