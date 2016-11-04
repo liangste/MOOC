@@ -1,74 +1,103 @@
 #include <iostream>
+#include <map>
+#include <set>
+#include <queue>
+#include <climits>
 #include <vector>
+#include <unistd.h>
 
-struct Vertex {
-    int weight;
-    std::vector <int> children;
+using namespace std;
+
+typedef vector<int> vi;
+typedef vector<bool> vb;
+typedef vector<vector<int>> vvi;
+
+#define LOOP(x, n) for(int x = 0; x < n; x++)
+
+struct Node {
+  int n;
+  int w;
+  set<Node *> children;
+  Node(int N, int W) : n(N), w(W) {};
 };
-typedef std::vector<Vertex> Graph;
-typedef std::vector<int> Sum;
 
-Graph ReadTree() {
-    int vertices_count;
-    std::cin >> vertices_count;
+int N;
+vi FunFactor;
+vvi AdjList;
+vi DP;
 
-    Graph tree(vertices_count);
+Node * BuildTree() {
+  vb visited(N, false);
 
-    for (int i = 0; i < vertices_count; ++i)
-        std::cin >> tree[i].weight;
+  vector<Node*> nodes;
+  LOOP(i, N)
+    nodes.push_back(new Node(i, FunFactor[i]));
 
-    for (int i = 1; i < vertices_count; ++i) {
-        int from, to, weight;
-        std::cin >> from >> to;
-        tree[from - 1].children.push_back(to - 1);
-        tree[to - 1].children.push_back(from - 1);
+  // do a traversal
+  queue<int> visitQueue;
+  visitQueue.push(0);
+
+  while (!visitQueue.empty()) {
+    int f = visitQueue.front();
+    visitQueue.pop();
+    visited[f] = true;
+    LOOP(i, AdjList[f].size()) {
+      int n = AdjList[f][i];
+      if (!visited[n]) {
+        nodes[f]->children.insert(nodes[n]);
+        visitQueue.push(n);
+      }
     }
+  }
 
-    return tree;
+  return nodes[0];
 }
 
-void dfs(const Graph &tree, int vertex, int parent) {
-    for (int child : tree[vertex].children)
-        if (child != parent)
-            dfs(tree, child, vertex);
+int SolveIndependetSet(Node * node) {
+  if (node == NULL) return 0;
 
-    // This is a template function for processing a tree using depth-first search.
-    // Write your code here.
-    // You may need to add more parameters to this function for child processing.
-}
+  int n = node->n;
+  int w = node->w;
+  if (DP[n] == INT_MAX) {
+    // if has no children
+    if (node->children.empty()) {
+      DP[n] = w;
+    } else {
+      int v_grandchildren = w;
+      int v_children = 0;
 
-int MaxWeightIndependentTreeSubset(const Graph &tree) {
-    size_t size = tree.size();
-    if (size == 0)
-        return 0;
-    dfs(tree, 0, -1);
-    // You must decide what to return.
-    return 0;
-}
-
-int main() {
-    // This code is here to increase the stack size to avoid stack overflow
-    // in depth-first search.
-    const rlim_t kStackSize = 64L * 1024L * 1024L;  // min stack size = 64 Mb
-    struct rlimit rl;
-    int result;
-    result = getrlimit(RLIMIT_STACK, &rl);
-    if (result == 0)
-    {
-        if (rl.rlim_cur < kStackSize)
-        {
-            rl.rlim_cur = kStackSize;
-            result = setrlimit(RLIMIT_STACK, &rl);
-            if (result != 0)
-            {
-                fprintf(stderr, "setrlimit returned result = %d\n", result);
-            }
+      for (auto children : node->children) {
+        v_children += SolveIndependetSet(children);
+        for (auto cchildren : children->children) {
+          v_grandchildren += SolveIndependetSet(cchildren);
         }
-    }
+      }
 
-    // Here begins the solution
-    Graph tree = ReadTree();
-    int weight = MaxWeightIndependentTreeSubset(tree);
-    std::cout << weight << std::endl;
-    return 0;
+      DP[n] = max(v_children, v_grandchildren);
+    }
+  }
+  return DP[n];
+}
+
+int main(void) {
+  cin >> N;
+
+  int n;
+  LOOP(i, N) {
+    cin >> n;
+    FunFactor.push_back(n);
+  }
+
+  AdjList.resize(N);
+  int a, b;
+  LOOP(i, N - 1) {
+    cin >> a >> b;
+    AdjList[a - 1].push_back(b - 1);
+    AdjList[b - 1].push_back(a - 1);
+  }
+
+  DP = vi(N, INT_MAX);
+  cout << SolveIndependetSet(BuildTree()) << endl;
+
+  return 0;
 }
