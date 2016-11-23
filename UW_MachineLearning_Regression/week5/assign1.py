@@ -79,9 +79,51 @@ print("### Best l1 penalty at %f, RSS was %f" % (best_l1, rss_min))
 # Compute RSS on Test data using this best l1_penanlty
 model = linear_model.Lasso(alpha=best_l1, normalize=True, max_iter=1e9)
 model.fit(testing[all_features], testing['price'])
-print(model.coef_)
-print(numpy.count_nonzero(model.coef_))
-print(numpy.count_nonzero(model.intercept_))
 num_nonzero_weights = numpy.count_nonzero(model.coef_) + numpy.count_nonzero(model.intercept_)
 
 print("### Number of non-zero weights is ", num_nonzero_weights)
+
+# Explore a large range of L1 penanlty
+l1_nonzeros = []
+for l1_penalty in numpy.logspace(1, 4, num=20):
+	model = linear_model.Lasso(alpha=l1_penalty, normalize=True)
+	model.fit(training[all_features], training['price'])
+
+	# Record number of non-zero coefficients
+	num_nonzero_weights = numpy.count_nonzero(model.coef_) + numpy.count_nonzero(model.intercept_)
+	l1_nonzeros.append((l1_penalty, num_nonzero_weights))
+
+max_nonzeros = 7
+l1_penalty_min = sys.float_info.min
+l1_penalty_max = sys.float_info.max
+
+for l1, cnt in l1_nonzeros:
+	if cnt > max_nonzeros and l1 > l1_penalty_min:
+		l1_penalty_min = l1
+	
+	if cnt < max_nonzeros and l1 < l1_penalty_max:
+		l1_penalty_max = l1
+
+print("### l1_penalty_min = %f, l1_penalty_max = %f" % (l1_penalty_min, l1_penalty_max))
+
+rss_min = sys.float_info.max
+best_l1 = l1_penalty_min
+# Explore the narrower range of l1 penalty
+for l1_penalty in numpy.linspace(l1_penalty_min, l1_penalty_max, 20):
+	model = linear_model.Lasso(alpha=l1_penalty, normalize=True)
+	model.fit(training[all_features], training['price'])
+	rss = ((model.predict(validation[all_features]) - validation['price']) ** 2).sum()
+	num_nonzero_weights = numpy.count_nonzero(model.coef_) + numpy.count_nonzero(model.intercept_)
+
+	if num_nonzero_weights == max_nonzeros:
+		if (rss < rss_min):
+			rss_min = rss
+			best_l1 = l1_penalty
+
+print("### l1 penalty %f is the lowest penalty with  %d non-zero coefficients, and rss %f" %(best_l1, max_nonzeros, rss_min))
+
+print("### The following features were chosen by Lasso")
+model = linear_model.Lasso(alpha=best_l1, normalize=True)
+model.fit(training[all_features], training['price'])
+model_coef = numpy.array(model.coef_)
+print(np_all_features[numpy.where(model_coef > 0)])
