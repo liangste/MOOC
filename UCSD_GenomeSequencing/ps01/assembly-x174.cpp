@@ -92,6 +92,7 @@ string DoTraversal(vector<OverlapEdge>& edges) {
     sourceWorthy[edges[i].dest] = false;
   }
 
+  int originalSource;
   int theSource;
   for (int i = 0; i < edges.size(); i++) {
     if (sourceWorthy[i]) {
@@ -100,12 +101,24 @@ string DoTraversal(vector<OverlapEdge>& edges) {
     }
   }
 
-  string ret = "";
+  originalSource = theSource;
+
+  string ret = Reads[theSource];
   for (int i = 0; i < edges.size(); i++) {
     int w = edges[sourceIndices[theSource]].weight;
     int d = edges[sourceIndices[theSource]].dest;
-    ret += Reads[d].substr(0, w);
+    ret += Reads[d].substr(w);
     theSource = edges[sourceIndices[theSource]].dest;
+  }
+
+  // if the last Read loops back to the first read, remove its edge from ret string
+  int lastRead = edges[sourceIndices[theSource]].dest;
+  for (int i = 0; i < AdjList[lastRead].size(); i++) {
+    if (AdjList[lastRead][i].dest == originalSource) {
+      int trimAmount = AdjList[lastRead][i].weight;
+      ret = ret.substr(0, ret.size() - trimAmount);
+      break;
+    }
   }
 
   return ret;
