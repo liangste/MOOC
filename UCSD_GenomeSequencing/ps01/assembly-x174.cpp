@@ -7,8 +7,18 @@
 
 using namespace std;
 
-typedef vector<vector<pair<int, int>>> vvii;
+// represents an overlap between 2 reads from the gloabl Reads vector
+struct OverlapEdge {
+  int source;
+  int dest;
+  int weight;
+  // edge value is simply reads[dest].substr(0, weight)
+};
 
+typedef vector<vector<OverlapEdge>> vvOverlapEdge;
+
+vector<string> Reads;
+vvOverlapEdge AdjList;
 
 // get max length of suffix of suffixSource that match prefix of prefixSource
 // returns 0 if no such suffix-prefix match is found between the two inputs
@@ -21,53 +31,115 @@ int GetPrefixSuffixMatch(const string& suffixSource, const string& prefixSource)
   return 0;
 }
 
-// build overlap graph from reads
-void BuildOverlapGraph(const vector<string>& reads, vvii& adjList) {
-  for (int i = 0; i < reads.size(); i++) {
-    for (int j = 0; j < reads.size(); j++) {
+void BuildOverlapGraph() {
+  for (int i = 0; i < Reads.size(); i++) {
+    for (int j = 0; j < Reads.size(); j++) {
       if (i != j) {
-        int m = GetPrefixSuffixMatch(reads[i], reads[j]);
+        int m = GetPrefixSuffixMatch(Reads[i], Reads[j]);
         if (m > 0) {
-          adjList[i].push_back({m, j});
+          AdjList[i].push_back({i, j, m});
         }
       }
     }
   }
 }
 
-// dump overlap graph for debugging
-void DumpOverlapGraph(const vector<string>& reads, vvii& adjList) {
-  for (int i = 0; i < reads.size(); i++) {
-    cout << (i) << " " << reads[i] << endl;
+void DumpOverlapGraph() {
+  for (int i = 0; i < Reads.size(); i++) {
+    cout << (i) << " " << Reads[i] << endl;
   }
 
-  for (int i = 0; i < adjList.size(); i++) {
-    for (int j = 0; j < adjList[i].size(); j++) {
-      cout << i << "->" << adjList[i][j].second << " w=" << adjList[i][j].first << endl;
+  for (int i = 0; i < AdjList.size(); i++) {
+    for (int j = 0; j < AdjList[i].size(); j++) {
+      cout << AdjList[i][j].source << "->" << AdjList[i][j].dest << " w=" << AdjList[i][j].weight << endl;
     }
   }
 }
 
-// find Hamiltonian cycle from the overlap graph in a greedy fashion, traverse it and return
-// string spelled out by its path
-string DoGreedyHamiltonian(const vector<string>& reads, vvii& adjList) {
-  return "";
+bool GetNextLargestUnvisitedEdge(vector<bool>& visited, OverlapEdge& nextEdge) {
+  // TODO work on this
+  bool found;
+  for (int i = 0; i < AdjList.size(); i++) {
+    for (int j = 0; j < AdjList[i].size(); j++) {
+      if (!visited[AdjList[i][j].source] || !visited[AdjList[i][j].dest]) {
+        if (found) {
+          if (AdjList[i][j].weight > nextEdge.weight) {
+            nextEdge.source = AdjList[i][j].source;
+            nextEdge.dest = AdjList[i][j].dest;
+            nextEdge.weight = AdjList[i][j].weight;
+            found = true;
+          }
+        } else {
+          nextEdge.source = AdjList[i][j].source;
+          nextEdge.dest = AdjList[i][j].dest;
+          nextEdge.weight = AdjList[i][j].weight;
+          found = true;
+        }
+      }
+    }
+  }
+  return found;
+}
+
+string DoTraversal(vector<OverlapEdge>& edges) {
+  // TODO work on this
+  vector<int> sourceIndices(edges.size());
+  vector<int> destIndices(edges.size());
+  vector<int> sourceWorthy(edges.size(), true);
+  for (int i = 0; i < edges.size(); i++) {
+    sourceIndices[edges[i].source] = i;
+    destIndices[edges[i].dest] = i;
+    sourceWorthy[edges[i].dest] = false;
+  }
+
+  int theSource;
+  for (int i = 0; i < edges.size(); i++) {
+    if (sourceWorthy[i]) {
+      theSource = i;
+      break;
+    }
+  }
+
+  string ret = "";
+  for (int i = 0; i < edges.size(); i++) {
+    int w = edges[sourceIndices[theSource]].weight;
+    int d = edges[sourceIndices[theSource]].dest;
+    ret += Reads[d].substr(0, w);
+    theSource = edges[sourceIndices[theSource]].dest;
+  }
+
+  return ret;
+}
+
+string DoGreedyHamiltonian() {
+  vector<bool> visited(Reads.size(), false);
+  vector<OverlapEdge> HamiltonianEdges;
+  while(true) {
+    OverlapEdge nextEdge;
+    bool hasNextEdge = GetNextLargestUnvisitedEdge(visited, nextEdge);
+    if (hasNextEdge) {
+      HamiltonianEdges.push_back(nextEdge);
+      visited[nextEdge.source] = true;
+      visited[nextEdge.dest] = true;
+    } else {
+      break;
+    }
+  }
+  return DoTraversal(HamiltonianEdges);
 }
 
 int main(void) {
-  vector<string> reads;
   string read;
-  vvii adjList; // edge weight, read target
-
   while(cin >> read)
   {
-    reads.push_back(read);
+    Reads.push_back(read);
   }
 
-  adjList.resize(reads.size() + 1);
+  AdjList.resize(Reads.size() + 1);
 
-  BuildOverlapGraph(reads, adjList);
-  DumpOverlapGraph(reads, adjList);
+  BuildOverlapGraph();
+  DumpOverlapGraph();
+  cout << DoGreedyHamiltonian() << endl;
 
   return 0;
 }
