@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+//#define DEBUG
+
 using namespace std;
 
 // represents an overlap between 2 reads from the gloabl Reads vector
@@ -151,7 +153,9 @@ int main(void) {
   AdjList.resize(Reads.size() + 1);
 
   BuildOverlapGraph();
+#ifdef DEBUG
   DumpOverlapGraph();
+#endif
   cout << DoGreedyHamiltonian() << endl;
 
   return 0;
