@@ -2,6 +2,7 @@
 // Overlap Graphs
 
 #include <iostream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -143,9 +144,13 @@ string DoGreedyHamiltonian() {
 
 int main(void) {
   string read;
+  set<string> readSet;
   while(cin >> read)
   {
-    Reads.push_back(read);
+    if (readSet.find(read) == readSet.end()) {
+      readSet.insert(read);
+      Reads.push_back(read);
+    }
   }
 
   AdjList.resize(Reads.size() + 1);
