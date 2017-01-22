@@ -10,8 +10,8 @@
 #include <string>
 #include <vector>
 
-//#define DEBUG
-//#define DEBUG2
+#define DEBUG
+#define DEBUG2
 #define MIN_OVERLAP_LENGTH 12
 
 using namespace std;
@@ -28,14 +28,28 @@ char * AdjMatrix;
 // get max length of suffix of suffixSource that match prefix of prefixSource
 // returns 0 if no such suffix-prefix match is found between the two inputs
 int GetPrefixSuffixMatch(const string& suffixSource, const string& prefixSource) {
+  // this step is way too slow
+  /*
+  return 0;
+  int n = suffixSource.size() - 1;
+  for (int i = 1; i < suffixSource.size() && n >= MIN_OVERLAP_LENGTH; i++, n--) {
+    if (suffixSource.substr(i) == prefixSource.substr(0, n))
+      return n;
+  }
+  */
+
   int max = INT_MIN;
-  int sslen = suffixSource.length();
-  for (int i = sslen; i >= MIN_OVERLAP_LENGTH; i--)
+  int len1 = suffixSource.length();
+  int len2 = prefixSource.length();
+  for (int i = 1; i <= min(len1, len2); i++)
   {
-      if (suffixSource.compare(sslen - i, i, prefixSource, 0, i) == 0)
+      // compare last i characters in str1 with first i
+      // characters in str2
+      if (suffixSource.compare(len1-i, i, prefixSource, 0, i) == 0)
       {
           if (max < i)
           {
+              //update max and str
               max = i;
           }
       }
@@ -94,36 +108,7 @@ int GetOverlapPathValue(vi& path) {
 // return -1 if greedy path from source s does not complete the graph
 // otherwise return greedy sum of edges from this source
 int GetGreedyOverlapPathValueFromSource(int s, vector<int>& path) {
-  if (Reads.size() == 0) return -1;
-
-  path.push_back(s);
-
-  int nv ;
-  char wt;
-  int wt_sum = 0;
-
-  int cnt = Reads.size();
-  while (cnt--) {
-    nv = -1;
-    wt = 0;
-
-    for (int i = 0; i < Reads.size(); i++) {
-      if (MATRIX_VALUE(s, i) > wt) {
-        nv = i;
-        wt = MATRIX_VALUE(s, i);
-      }
-    }
-
-    if (nv == -1) {
-      return -1;
-    }
-
-    path.push_back(nv);
-    s = nv;
-    wt_sum += wt;
-  }
-
-  return wt_sum;
+  return -1;
 }
 
 void PrintVectorInt(vector<int>& v) {
@@ -158,6 +143,12 @@ string ReassembleGenomeByPath(vector<int>& path) {
 // when making a decision, we encounter multiple edges with same weight
 // https://www.hackerearth.com/practice/algorithms/graphs/hamiltonian-path/tutorial/
 string DoGreedyHamiltonian() {
+  // 1. generate permutations
+  // for each permutation, check wehther path is valid
+  // return path with largest sum edge weights
+  vvi paths;
+  //GenPermutationPaths(paths, Reads.size());
+
   int m;
   int bestPathWeight = 0;
   vector<int> path;
@@ -173,8 +164,9 @@ string DoGreedyHamiltonian() {
     }
   }
 
-#ifdef DEBUG
   PrintVectorInt(path);
+
+#ifdef DEBUG
   cout << "best path has value " << bestPathWeight << endl;
   PrintVectorInt(path);
 #endif
