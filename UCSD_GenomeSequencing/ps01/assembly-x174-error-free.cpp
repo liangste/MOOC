@@ -10,7 +10,8 @@
 #include <vector>
 
 #define DEBUG
-//#define DEBUG2
+#define DEBUG2
+#define MIN_OVERLAP_LENGTH 12
 
 using namespace std;
 
@@ -26,8 +27,9 @@ char * AdjMatrix;
 // get max length of suffix of suffixSource that match prefix of prefixSource
 // returns 0 if no such suffix-prefix match is found between the two inputs
 int GetPrefixSuffixMatch(const string& suffixSource, const string& prefixSource) {
+  // this step is way too slow
   int n = suffixSource.size() - 1;
-  for (int i = 1; i < suffixSource.size(); i++, n--) {
+  for (int i = 1; i < suffixSource.size() && n >= MIN_OVERLAP_LENGTH; i++, n--) {
     if (suffixSource.substr(i) == prefixSource.substr(0, n))
       return n;
   }
@@ -145,6 +147,7 @@ string DoGreedyHamiltonian() {
       if (m > bestPathWeight) {
         bestPathWeight = m;
         bestPath = paths[i];
+        break;
       }
     }
   }
@@ -173,9 +176,9 @@ int main(void) {
 
   BuildOverlapGraph();
 #ifdef DEBUG
-  DumpOverlapGraph();
+  //DumpOverlapGraph();
 #endif
-  cout << DoGreedyHamiltonian() << endl;
+  //cout << DoGreedyHamiltonian() << endl;
 
   delete[] AdjMatrix;
 
