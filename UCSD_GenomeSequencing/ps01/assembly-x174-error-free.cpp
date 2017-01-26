@@ -22,11 +22,19 @@ using namespace std;
 typedef vector<int> vi;
 typedef vector<vector<int>> vvi;
 
+typedef struct OverlapGraphEdge {
+  int src;
+  int dst;
+  int wt;
+} OGEdge_t;
+
 vector<string> Reads;
 // weignt from source->dest, 0 if no edge
 // i.e. AdjMatrix[0][1] contains edge weight from 0'th read to 1st read
 char * AdjMatrix;
 #define MATRIX_VALUE(row, col) (AdjMatrix[row + col * Reads.size()])
+
+vector<vector<OGEdge_t>> AdjList;
 
 // maps from string -> set of indices of Reads containing the string as prefix
 multimap<string, int> PrefixMap;
@@ -69,20 +77,19 @@ void BuildOverlapGraph() {
       string suffix_i = Reads[i].substr(s);
 
       // we're looking at suffix that doesn't contribute much to Reads[i], to next
-      if (suffix_i.size() < MaxEdgeValues[i])
-        continue;
+      //if (suffix_i.size() < MaxEdgeValues[i])
+      //  continue;
 
       if (PrefixMap.find(suffix_i) != PrefixMap.end()) {
         // build directed edges from i to everything that's mapped here
         auto range = PrefixMap.equal_range(suffix_i);
         for (auto r = range.first; r != range.second; ++r) {
           int len = suffix_i.size();
-          if (len > MATRIX_VALUE(i, r->second)) {
-            MATRIX_VALUE(i, r->second) = len;
-          }
-
-          if (len > MaxEdgeValues[i])
+          if (len > MaxEdgeValues[i]) {
             MaxEdgeValues[i] = len;
+
+          }
+          AdjList[i].push_back({.src=i, .dst=r->second, .wt=len});
         }
       }
     }
@@ -94,9 +101,10 @@ void DumpOverlapGraph() {
     cout << (i) << " " << Reads[i] << endl;
   }
 
-  for (int i = 0; i < Reads.size(); i++) {
-    for (int j = 0; j < Reads.size(); j++) {
-      cout << (int) MATRIX_VALUE(i, j) << " ";
+  for (int i = 0; i < AdjList.size(); i++) {
+    cout << "Read " << i;
+    for (int j = 0; j < AdjList[i].size(); j++) {
+      cout << " " <<  (int) AdjList[i][j].wt << " ";
     }
     cout << endl;
   }
@@ -125,6 +133,7 @@ int GetOverlapPathValue(vi& path) {
 // return -1 if greedy path from source s does not complete the graph
 // otherwise return greedy sum of edges from this source
 int GetGreedyOverlapPathValueFromSource(int s, vector<int>& path) {
+  vector<bool> visited(Reads.size(), false);
   if (Reads.size() == 0) return -1;
 
   path.push_back(s);
@@ -138,10 +147,10 @@ int GetGreedyOverlapPathValueFromSource(int s, vector<int>& path) {
     nv = -1;
     wt = 0;
 
-    for (int i = 0; i < Reads.size(); i++) {
-      if (MATRIX_VALUE(s, i) > wt) {
-        nv = i;
-        wt = MATRIX_VALUE(s, i);
+    for (int i = 0; i < AdjList[s].size(); i++) {
+      if (AdjList[s][i].wt > wt && !visited[AdjList[s][i].dst]) {
+        nv = AdjList[s][i].dst;
+        wt = AdjList[s][i].wt;
       }
     }
 
@@ -149,6 +158,7 @@ int GetGreedyOverlapPathValueFromSource(int s, vector<int>& path) {
       return -1;
     }
 
+    visited[nv] = true;
     path.push_back(nv);
     s = nv;
     wt_sum += wt;
@@ -205,12 +215,13 @@ string DoGreedyHamiltonian() {
   }
 
 #ifdef DEBUG
-  PrintVectorInt(path);
-  cout << "best path has value " << bestPathWeight << endl;
-  PrintVectorInt(path);
+  if (bestPathWeight > 0) {
+    PrintVectorInt(path);
+    cout << "best path has value " << bestPathWeight << endl;
+  }
 #endif
 
-  return ReassembleGenomeByPath(path);
+  return (bestPathWeight > 0) ? ReassembleGenomeByPath(path) : "";
 }
 
 int main(void) {
@@ -224,16 +235,13 @@ int main(void) {
     }
   }
 
-  AdjMatrix = new char[Reads.size() * Reads.size()];
-  memset(AdjMatrix, 0, Reads.size() * Reads.size());
+  AdjList.resize(Reads.size());
 
   BuildOverlapGraph();
 #ifdef DEBUG
   DumpOverlapGraph();
 #endif
-  //cout << DoGreedyHamiltonian() << endl;
-
-  delete[] AdjMatrix;
+  cout << DoGreedyHamiltonian() << endl;
 
   return 0;
 }
