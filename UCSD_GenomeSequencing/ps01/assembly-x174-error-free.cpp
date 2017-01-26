@@ -1,16 +1,19 @@
 // Dataset Problem 1 : Assembling the phi X174 Genome from Error-Free Reads Using
 // Overlap Graphs
 
+// TODO Overlap graph is pretty sparse, use adjacency list!
+
 #include <algorithm>
 #include <climits>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <numeric>
 #include <set>
 #include <string>
 #include <vector>
 
-//#define DEBUG
+#define DEBUG
 //#define DEBUG2
 #define MIN_OVERLAP_LENGTH 12
 
@@ -24,6 +27,11 @@ vector<string> Reads;
 // i.e. AdjMatrix[0][1] contains edge weight from 0'th read to 1st read
 char * AdjMatrix;
 #define MATRIX_VALUE(row, col) (AdjMatrix[row + col * Reads.size()])
+
+// maps from string -> set of indices of Reads containing the string as prefix
+multimap<string, int> PrefixMap;
+
+vi MaxEdgeValues;
 
 // get max length of suffix of suffixSource that match prefix of prefixSource
 // returns 0 if no such suffix-prefix match is found between the two inputs
@@ -46,12 +54,35 @@ int GetPrefixSuffixMatch(const string& suffixSource, const string& prefixSource)
 }
 
 void BuildOverlapGraph() {
+  MaxEdgeValues = vi(Reads.size(), 0);
+
+  // build prefixes
   for (int i = 0; i < Reads.size(); i++) {
-    for (int j = 0; j < Reads.size(); j++) {
-      if (i != j) {
-        int m = GetPrefixSuffixMatch(Reads[i], Reads[j]);
-        if (m > 0) {
-          MATRIX_VALUE(i, j) = m;
+    for (int p = MIN_OVERLAP_LENGTH; p < Reads[i].size(); p++) {
+      PrefixMap.insert({Reads[i].substr(0, p), i});
+    }
+  }
+
+  // iterate over suffixes and make directed edges for the overlap graph
+  for (int i = 0; i < Reads.size(); i++) {
+    for (int s = 1; s <= (Reads[i].size() - MIN_OVERLAP_LENGTH); s++) {
+      string suffix_i = Reads[i].substr(s);
+
+      // we're looking at suffix that doesn't contribute much to Reads[i], to next
+      if (suffix_i.size() < MaxEdgeValues[i])
+        continue;
+
+      if (PrefixMap.find(suffix_i) != PrefixMap.end()) {
+        // build directed edges from i to everything that's mapped here
+        auto range = PrefixMap.equal_range(suffix_i);
+        for (auto r = range.first; r != range.second; ++r) {
+          int len = suffix_i.size();
+          if (len > MATRIX_VALUE(i, r->second)) {
+            MATRIX_VALUE(i, r->second) = len;
+          }
+
+          if (len > MaxEdgeValues[i])
+            MaxEdgeValues[i] = len;
         }
       }
     }
@@ -198,9 +229,9 @@ int main(void) {
 
   BuildOverlapGraph();
 #ifdef DEBUG
-  //DumpOverlapGraph();
+  DumpOverlapGraph();
 #endif
-  cout << DoGreedyHamiltonian() << endl;
+  //cout << DoGreedyHamiltonian() << endl;
 
   delete[] AdjMatrix;
 
