@@ -15,7 +15,7 @@
 
 #define DEBUG
 //#define DEBUG2
-#define MIN_OVERLAP_LENGTH 12
+#define MIN_OVERLAP_LENGTH 1 // minimum is 1
 
 using namespace std;
 
@@ -29,17 +29,12 @@ typedef struct OverlapGraphEdge {
 } OGEdge_t;
 
 vector<string> Reads;
-// weignt from source->dest, 0 if no edge
-// i.e. AdjMatrix[0][1] contains edge weight from 0'th read to 1st read
-char * AdjMatrix;
-#define MATRIX_VALUE(row, col) (AdjMatrix[row + col * Reads.size()])
-
 vector<vector<OGEdge_t>> AdjList;
-
 // maps from string -> set of indices of Reads containing the string as prefix
 multimap<string, int> PrefixMap;
-
 vi MaxEdgeValues;
+char * AdjMatrix;
+#define MATRIX_VALUE(row, col) (AdjMatrix[row + col * Reads.size()])
 
 // get max length of suffix of suffixSource that match prefix of prefixSource
 // returns 0 if no such suffix-prefix match is found between the two inputs
@@ -104,30 +99,12 @@ void DumpOverlapGraph() {
   for (int i = 0; i < AdjList.size(); i++) {
     cout << "Read " << i;
     for (int j = 0; j < AdjList[i].size(); j++) {
-      cout << " " <<  (int) AdjList[i][j].wt << " ";
+      cout << " {src=" <<  (int) AdjList[i][j].src
+        << " dst="<<  (int) AdjList[i][j].dst
+        << " wt="<<  (int) AdjList[i][j].wt << "} ";
     }
     cout << endl;
   }
-}
-
-// return -1 if path is not a valid path in the overlap graph
-// otherwise returns sum of edges on this path
-int GetOverlapPathValue(vi& path) {
-  if (path.size() == 0) return -1;
-
-  int cur = path[0];
-  int edgeSum = 0;
-  for (int i = 1; i < path.size(); i++) {
-    // TODO use adjacency matrix instead of edge
-    if (MATRIX_VALUE(cur, path[i]) > 0) {
-      edgeSum += MATRIX_VALUE(cur, path[i]);
-      cur = path[i];
-    } else {
-      return -1;
-    }
-  }
-
-  return edgeSum;
 }
 
 // return -1 if greedy path from source s does not complete the graph
@@ -137,6 +114,7 @@ int GetGreedyOverlapPathValueFromSource(int s, vector<int>& path) {
   if (Reads.size() == 0) return -1;
 
   path.push_back(s);
+  visited[s] = true;
 
   int nv ;
   char wt;
@@ -180,14 +158,27 @@ string ReassembleGenomeByPath(vector<int>& path) {
   string ret = Reads[cur];
 
   for (int i = 1; i < path.size(); i++) {
-    ret += Reads[path[i]].substr(MATRIX_VALUE(cur, path[i]));
+    int overlap_weight;
+    for (auto& e : AdjList[cur]) {
+      if (e.dst == path[i]) {
+        overlap_weight = e.wt;
+        break;
+      }
+    }
+    ret += Reads[path[i]].substr(overlap_weight);
     cur = path[i];
   }
 
+  int trim_weight = 0;
+  for (auto& e : AdjList[path[0]]) {
+    if (e.dst == path[path.size() - 1]) {
+      trim_weight = e.wt;
+      break;
+    }
+  }
   // if last vertex links back to the first
-  int trim_value = MATRIX_VALUE(path[path.size() - 1], path[0]);
-  if (trim_value) {
-    ret = ret.substr(0, ret.size() - trim_value);
+  if (trim_weight) {
+    ret = ret.substr(0, ret.size() - trim_weight);
   }
 
   return ret;
@@ -199,20 +190,25 @@ string ReassembleGenomeByPath(vector<int>& path) {
 // when making a decision, we encounter multiple edges with same weight
 // https://www.hackerearth.com/practice/algorithms/graphs/hamiltonian-path/tutorial/
 string DoGreedyHamiltonian() {
+  cout << "test 0" << endl;
   int m;
   int bestPathWeight = 0;
   vector<int> path;
 
+  cout << "test 1" << endl;
   for (int s = 0; s < Reads.size(); s++) {
+    cout << "check source " << s << endl;
     path.clear();
     m = GetGreedyOverlapPathValueFromSource(s, path);
     if (m > 0) {
+      cout << "path with weight " << m << " found" << endl;
       if (m > bestPathWeight) {
         bestPathWeight = m;
         break;
       }
     }
   }
+  cout << "test 2" << endl;
 
 #ifdef DEBUG
   if (bestPathWeight > 0) {
@@ -221,6 +217,7 @@ string DoGreedyHamiltonian() {
   }
 #endif
 
+  cout << "test 3" << endl;
   return (bestPathWeight > 0) ? ReassembleGenomeByPath(path) : "";
 }
 

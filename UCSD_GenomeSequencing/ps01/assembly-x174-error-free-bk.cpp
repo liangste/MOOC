@@ -2,7 +2,6 @@
 // Overlap Graphs
 
 #include <algorithm>
-#include <climits>
 #include <cstring>
 #include <iostream>
 #include <numeric>
@@ -10,9 +9,8 @@
 #include <string>
 #include <vector>
 
-#define DEBUG
-#define DEBUG2
-#define MIN_OVERLAP_LENGTH 12
+//#define DEBUG
+//#define DEBUG2
 
 using namespace std;
 
@@ -28,35 +26,12 @@ char * AdjMatrix;
 // get max length of suffix of suffixSource that match prefix of prefixSource
 // returns 0 if no such suffix-prefix match is found between the two inputs
 int GetPrefixSuffixMatch(const string& suffixSource, const string& prefixSource) {
-  // this step is way too slow
-  /*
-  return 0;
   int n = suffixSource.size() - 1;
-  for (int i = 1; i < suffixSource.size() && n >= MIN_OVERLAP_LENGTH; i++, n--) {
+  for (int i = 1; i < suffixSource.size(); i++, n--) {
     if (suffixSource.substr(i) == prefixSource.substr(0, n))
       return n;
   }
-  */
-
-  int max = INT_MIN;
-  int len1 = suffixSource.length();
-  int len2 = prefixSource.length();
-  for (int i = 1; i <= min(len1, len2); i++)
-  {
-      // compare last i characters in str1 with first i
-      // characters in str2
-      if (suffixSource.compare(len1-i, i, prefixSource, 0, i) == 0)
-      {
-          if (max < i)
-          {
-              //update max and str
-              max = i;
-          }
-      }
-  }
-
-  if (max == INT_MIN) return -1;
-  return max;
+  return 0;
 }
 
 void BuildOverlapGraph() {
@@ -85,6 +60,15 @@ void DumpOverlapGraph() {
   }
 }
 
+// gen permutation of vertices numbers from 0 to numVertices - 1
+void GenPermutationPaths(vvi& paths, int numVertices) {
+  vector<int> basePath(numVertices);
+  std::iota(basePath.begin(), basePath.end(), 0);
+  do {
+    paths.push_back(basePath);
+  } while (next_permutation(basePath.begin(), basePath.end()));
+}
+
 // return -1 if path is not a valid path in the overlap graph
 // otherwise returns sum of edges on this path
 int GetOverlapPathValue(vi& path) {
@@ -103,12 +87,6 @@ int GetOverlapPathValue(vi& path) {
   }
 
   return edgeSum;
-}
-
-// return -1 if greedy path from source s does not complete the graph
-// otherwise return greedy sum of edges from this source
-int GetGreedyOverlapPathValueFromSource(int s, vector<int>& path) {
-  return -1;
 }
 
 void PrintVectorInt(vector<int>& v) {
@@ -147,31 +125,36 @@ string DoGreedyHamiltonian() {
   // for each permutation, check wehther path is valid
   // return path with largest sum edge weights
   vvi paths;
-  //GenPermutationPaths(paths, Reads.size());
+  GenPermutationPaths(paths, Reads.size());
+
+#ifdef DEBUG2
+  cout << "generated " << paths.size() << " permutation paths" << endl;
+
+  for (int i = 0; i < paths.size(); i++) {
+    PrintVectorInt(paths[i]);
+  }
+#endif
 
   int m;
+  vector<int> bestPath;
   int bestPathWeight = 0;
-  vector<int> path;
 
-  for (int s = 0; s < Reads.size(); s++) {
-    path.clear();
-    m = GetGreedyOverlapPathValueFromSource(s, path);
+  for (int i = 0; i < paths.size(); i++) {
+    m = GetOverlapPathValue(paths[i]);
     if (m > 0) {
       if (m > bestPathWeight) {
         bestPathWeight = m;
-        break;
+        bestPath = paths[i];
       }
     }
   }
 
-  PrintVectorInt(path);
-
 #ifdef DEBUG
   cout << "best path has value " << bestPathWeight << endl;
-  PrintVectorInt(path);
+  PrintVectorInt(bestPath);
 #endif
 
-  return ReassembleGenomeByPath(path);
+  return ReassembleGenomeByPath(bestPath);
 }
 
 int main(void) {
@@ -190,9 +173,9 @@ int main(void) {
 
   BuildOverlapGraph();
 #ifdef DEBUG
-  //DumpOverlapGraph();
+  DumpOverlapGraph();
 #endif
-  cout << DoGreedyHamiltonian() << endl;
+  //cout << DoGreedyHamiltonian() << endl;
 
   delete[] AdjMatrix;
 
