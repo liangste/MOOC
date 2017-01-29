@@ -170,12 +170,13 @@ string ReassembleGenomeByPath(vector<int>& path) {
   }
 
   int trim_weight = 0;
-  for (auto& e : AdjList[path[0]]) {
-    if (e.dst == path[path.size() - 1]) {
+  for (auto& e : AdjList[path[path.size() - 1]]) {
+    if (e.dst == path[0]) {
       trim_weight = e.wt;
       break;
     }
   }
+
   // if last vertex links back to the first
   if (trim_weight) {
     ret = ret.substr(0, ret.size() - trim_weight);
@@ -294,6 +295,7 @@ int main(void) {
 
   BuildAllPaths(allPaths);
 
+  //PrintVectorInt(allPaths[0]);
   cout << ReassembleGenomeByPath(allPaths[0]) << endl;
   // cout << DoGreedyHamiltonian() << endl;
 
