@@ -145,7 +145,7 @@ int GetGreedyOverlapPathValueFromSource(int s, vector<int>& path) {
   return wt_sum;
 }
 
-void PrintVectorInt(vector<int>& v) {
+void PrintVectorInt(const vector<int>& v) {
   for (int j = 0; j < v.size(); j++) {
     cout << v[j] << " ";
   }
@@ -182,6 +182,26 @@ string ReassembleGenomeByPath(vector<int>& path) {
   }
 
   return ret;
+}
+
+// return -1 if path is not a valid path in the overlap graph
+// otherwise returns sum of edges on this path
+int GetOverlapPathValue(vi& path) {
+  if (path.size() == 0) return -1;
+
+  int cur = path[0];
+  int edgeSum = 0;
+  for (int i = 1; i < path.size(); i++) {
+    // TODO use adjacency matrix instead of edge
+    if (MATRIX_VALUE(cur, path[i]) > 0) {
+      edgeSum += MATRIX_VALUE(cur, path[i]);
+      cur = path[i];
+    } else {
+      return -1;
+    }
+  }
+
+  return edgeSum;
 }
 
 // Hamiltonian Path is a path in a graph that traverses all vertices. But depending
@@ -221,6 +241,37 @@ string DoGreedyHamiltonian() {
   return (bestPathWeight > 0) ? ReassembleGenomeByPath(path) : "";
 }
 
+vector<vector<int>> AllPaths;
+
+void BuildAllPaths_Helper(int i, vector<int>& path, vector<bool>& visited, vector<vector<int>>& allPaths)
+{
+  if (allPaths.size() > 0) return;
+  if (path.size() == Reads.size()) {
+    allPaths.push_back(path);
+  } else {
+    for (int j = 0; j < AdjList[i].size(); ++j) {
+      int dst = AdjList[i][j].dst;
+      if (!visited[dst]) {
+        visited[dst] = true;
+        path.push_back(dst);
+        BuildAllPaths_Helper(dst, path, visited, allPaths);
+        visited[dst] = false;
+        path.pop_back();
+      }
+    }
+  }
+}
+
+void BuildAllPaths(vector<vector<int>>& allPaths)
+{
+  vector<bool> visited(Reads.size(), false);
+  vector<int> path;
+
+  path.push_back(0);
+  visited[0] = true;
+  BuildAllPaths_Helper(0, path, visited, allPaths);
+}
+
 int main(void) {
   string read;
   set<string> readSet; // remove duplicate reads
@@ -236,9 +287,15 @@ int main(void) {
 
   BuildOverlapGraph();
 #ifdef DEBUG
-  DumpOverlapGraph();
+  //DumpOverlapGraph();
 #endif
-  cout << DoGreedyHamiltonian() << endl;
+
+  vector<vector<int>> allPaths;
+
+  BuildAllPaths(allPaths);
+
+  cout << ReassembleGenomeByPath(allPaths[0]) << endl;
+  // cout << DoGreedyHamiltonian() << endl;
 
   return 0;
 }
