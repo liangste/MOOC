@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#define DEBUG
+//#define DEBUG
 //#define DEBUG2
 #define MIN_OVERLAP_LENGTH 1 // minimum is 1
 
@@ -33,29 +33,8 @@ vector<vector<OGEdge_t>> AdjList;
 // maps from string -> set of indices of Reads containing the string as prefix
 multimap<string, int> PrefixMap;
 vi MaxEdgeValues;
-char * AdjMatrix;
-#define MATRIX_VALUE(row, col) (AdjMatrix[row + col * Reads.size()])
 
-// get max length of suffix of suffixSource that match prefix of prefixSource
-// returns 0 if no such suffix-prefix match is found between the two inputs
-int GetPrefixSuffixMatch(const string& suffixSource, const string& prefixSource) {
-  int max = INT_MIN;
-  int sslen = suffixSource.length();
-  for (int i = sslen; i >= MIN_OVERLAP_LENGTH; i--)
-  {
-      if (suffixSource.compare(sslen - i, i, prefixSource, 0, i) == 0)
-      {
-          if (max < i)
-          {
-              max = i;
-          }
-      }
-  }
-
-  if (max == INT_MIN) return -1;
-  return max;
-}
-
+// use Reads and PrefixMap to build the Overlap Graph and store it in AdjList
 void BuildOverlapGraph() {
   MaxEdgeValues = vi(Reads.size(), 0);
 
@@ -91,6 +70,7 @@ void BuildOverlapGraph() {
   }
 }
 
+// print the overlap graph for debugging
 void DumpOverlapGraph() {
   for (int i = 0; i < Reads.size(); i++) {
     cout << (i) << " " << Reads[i] << endl;
@@ -107,44 +87,7 @@ void DumpOverlapGraph() {
   }
 }
 
-// return -1 if greedy path from source s does not complete the graph
-// otherwise return greedy sum of edges from this source
-int GetGreedyOverlapPathValueFromSource(int s, vector<int>& path) {
-  vector<bool> visited(Reads.size(), false);
-  if (Reads.size() == 0) return -1;
-
-  path.push_back(s);
-  visited[s] = true;
-
-  int nv ;
-  char wt;
-  int wt_sum = 0;
-
-  int cnt = Reads.size();
-  while (cnt--) {
-    nv = -1;
-    wt = 0;
-
-    for (int i = 0; i < AdjList[s].size(); i++) {
-      if (AdjList[s][i].wt > wt && !visited[AdjList[s][i].dst]) {
-        nv = AdjList[s][i].dst;
-        wt = AdjList[s][i].wt;
-      }
-    }
-
-    if (nv == -1) {
-      return -1;
-    }
-
-    visited[nv] = true;
-    path.push_back(nv);
-    s = nv;
-    wt_sum += wt;
-  }
-
-  return wt_sum;
-}
-
+// helper function for printing a vector of integers
 void PrintVectorInt(const vector<int>& v) {
   for (int j = 0; j < v.size(); j++) {
     cout << v[j] << " ";
@@ -152,6 +95,7 @@ void PrintVectorInt(const vector<int>& v) {
   cout << endl;
 }
 
+// use vector of int to reconstruct the genome from overlap graph
 string ReassembleGenomeByPath(vector<int>& path) {
   if (path.size() == 0) return "";
   int cur = path[0];
@@ -185,77 +129,21 @@ string ReassembleGenomeByPath(vector<int>& path) {
   return ret;
 }
 
-// return -1 if path is not a valid path in the overlap graph
-// otherwise returns sum of edges on this path
-int GetOverlapPathValue(vi& path) {
-  if (path.size() == 0) return -1;
-
-  int cur = path[0];
-  int edgeSum = 0;
-  for (int i = 1; i < path.size(); i++) {
-    // TODO use adjacency matrix instead of edge
-    if (MATRIX_VALUE(cur, path[i]) > 0) {
-      edgeSum += MATRIX_VALUE(cur, path[i]);
-      cur = path[i];
-    } else {
-      return -1;
-    }
-  }
-
-  return edgeSum;
-}
-
-// Hamiltonian Path is a path in a graph that traverses all vertices. But depending
-// on the starting vertex, a greedy path may not encounter all vertices.
-// This can happen if 1) starting vertex is wrong) or 2) at any given point
-// when making a decision, we encounter multiple edges with same weight
-// https://www.hackerearth.com/practice/algorithms/graphs/hamiltonian-path/tutorial/
-string DoGreedyHamiltonian() {
-  cout << "test 0" << endl;
-  int m;
-  int bestPathWeight = 0;
-  vector<int> path;
-
-  cout << "test 1" << endl;
-  for (int s = 0; s < Reads.size(); s++) {
-    cout << "check source " << s << endl;
-    path.clear();
-    m = GetGreedyOverlapPathValueFromSource(s, path);
-    if (m > 0) {
-      cout << "path with weight " << m << " found" << endl;
-      if (m > bestPathWeight) {
-        bestPathWeight = m;
-        break;
-      }
-    }
-  }
-  cout << "test 2" << endl;
-
-#ifdef DEBUG
-  if (bestPathWeight > 0) {
-    PrintVectorInt(path);
-    cout << "best path has value " << bestPathWeight << endl;
-  }
-#endif
-
-  cout << "test 3" << endl;
-  return (bestPathWeight > 0) ? ReassembleGenomeByPath(path) : "";
-}
-
-vector<vector<int>> AllPaths;
-
-void BuildAllPaths_Helper(int i, vector<int>& path, vector<bool>& visited, vector<vector<int>>& allPaths)
+// helper function
+// recursively calls itself in search of the one Hamiltonian cycle, stops all
+// recurences if such cycle is found
+void OverlapGraphGreedyTraversal_Helper(int i, vector<int>& path, vector<bool>& visited, vector<int>& sol)
 {
-  if (allPaths.size() > 0) return;
+  if (sol.size() > 0) return;
   if (path.size() == Reads.size()) {
-    allPaths.push_back(path);
+    sol = path;
   } else {
     for (int j = 0; j < AdjList[i].size(); ++j) {
       int dst = AdjList[i][j].dst;
       if (!visited[dst]) {
         visited[dst] = true;
         path.push_back(dst);
-        BuildAllPaths_Helper(dst, path, visited, allPaths);
+        OverlapGraphGreedyTraversal_Helper(dst, path, visited, sol);
         visited[dst] = false;
         path.pop_back();
       }
@@ -263,14 +151,18 @@ void BuildAllPaths_Helper(int i, vector<int>& path, vector<bool>& visited, vecto
   }
 }
 
-void BuildAllPaths(vector<vector<int>>& allPaths)
+// Master function to call into a recursive greedy traversal
+void DoGreedyHamiltonian(vector<int>& sol)
 {
   vector<bool> visited(Reads.size(), false);
   vector<int> path;
 
   path.push_back(0);
   visited[0] = true;
-  BuildAllPaths_Helper(0, path, visited, allPaths);
+
+  // if there's a Hamiltonian cycle, it visits every vertex once, and it has
+  // to be the same cycle regarless of where we start the traversal
+  OverlapGraphGreedyTraversal_Helper(0, path, visited, sol);
 }
 
 int main(void) {
@@ -288,16 +180,14 @@ int main(void) {
 
   BuildOverlapGraph();
 #ifdef DEBUG
-  //DumpOverlapGraph();
+  DumpOverlapGraph();
 #endif
 
-  vector<vector<int>> allPaths;
+  vector<int> sol;
 
-  BuildAllPaths(allPaths);
+  DoGreedyHamiltonian(sol);
 
-  //PrintVectorInt(allPaths[0]);
-  cout << ReassembleGenomeByPath(allPaths[0]) << endl;
-  // cout << DoGreedyHamiltonian() << endl;
+  cout << ReassembleGenomeByPath(sol) << endl;
 
   return 0;
 }
