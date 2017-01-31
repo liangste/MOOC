@@ -4,10 +4,11 @@
 #include <iostream>
 #include <map>
 #include <numeric>
+#include <regex>
 #include <string>
 #include <vector>
 
-#define DEBUG
+//#define DEBUG
 
 using namespace std;
 
@@ -18,34 +19,29 @@ enum Edge {
   Right,
 };
 
-enum Edge OppositeEdge(enum Edge e) {
-  switch(e) {
-    case Top:
-      return Bottom;
-    case Left:
-      return Right;
-    case Bottom:
-      return Top;
-    case Right:
-      return Left;
-  };
-};
+std::map<string, int> ColorToIdMap;
+vector<string> AllColors; // max here is 25 * 4 - 25
 
 class Square {
 public:
-  Square(const string& top, const string& left,
-    const string& bottom, const string& right)
-    : BorderColors(vector<string>(4))
+  Square(int top, int left, int bottom, int right)
+    : BorderColors(vector<int>(4))
   {
     BorderColors[Top] = top;
     BorderColors[Left] = left;
     BorderColors[Bottom] = bottom;
     BorderColors[Right] = right;
   }
-  vector<string> BorderColors;
+
+  string ToString() {
+    return "(" + AllColors[BorderColors[Top]] + "," + AllColors[BorderColors[Left]] + ","
+      + AllColors[BorderColors[Bottom]] + "," + AllColors[BorderColors[Right]] + ")";
+  }
+  vector<int> BorderColors;
 };
 
 const string BorderColor = "black";
+int BorderColorIdx = 0;
 
 void GenerateSquarePosPermutations(vector<vector<int>>& posPerms, int s) {
 	vector<int> perm(s);
@@ -55,39 +51,122 @@ void GenerateSquarePosPermutations(vector<vector<int>>& posPerms, int s) {
 	} while (next_permutation(perm.begin(), perm.end()));
 }
 
+void PrintIntVector(const vector<int>& v) {
+  for (auto& val : v) {
+    cout << val << " ";
+  }
+  cout << endl;
+}
+
 vector<int> FilterValidArrangement(vector<vector<int>>& posPerms, vector<Square>& squares) {
 	vector<int> ret;
 	int cnt;
+  int wh = sqrt(squares.size());
+  int whoff = wh - 1;
+  bool fail;
 
 	// check 4 corners
 	// check adjacent color matches
 	for (auto& p : posPerms) {
-		for (int i = 1; i < p.size(); i++) {
-			int a = p[i - 1];
-			int b = p[i];
-			if (squares[a].BorderColors[Right] == squares[b].BorderColors[Left])
-				cnt++;
-		}
+    //PrintIntVector(p);
+    // check all corners
+    if (squares[p[0]].BorderColors[Top] == BorderColorIdx
+      && squares[p[0]].BorderColors[Left] == BorderColorIdx
+      && squares[p[whoff]].BorderColors[Top] == BorderColorIdx
+      && squares[p[whoff]].BorderColors[Right] == BorderColorIdx
+      && squares[p[squares.size() - wh]].BorderColors[Bottom] == BorderColorIdx
+      && squares[p[squares.size() - wh]].BorderColors[Left] == BorderColorIdx
+      && squares[p[squares.size() - 1]].BorderColors[Bottom] == BorderColorIdx
+      && squares[p[squares.size() - 1]].BorderColors[Right] == BorderColorIdx)
+    {
+      fail = false;
+      for (int i = 0; i < squares.size() - wh; i++) {
+        // check Bottom
+        if (squares[p[i]].BorderColors[Bottom] != squares[p[i + wh]].BorderColors[Top]) {
+          fail = true;
+          break;
+        }
+        if ((i % wh) != (wh - 1)) { // if not on right edge
+          // check right edge
+          if (squares[p[i]].BorderColors[Right] != squares[p[i + 1]].BorderColors[Left]) {
+            fail = true;
+            break;
+          }
+        }
+      }
+
+      if (fail) continue;
+
+      ret = p;
+      break;
+    }
 	}
 
 	return ret;
 }
 
+void PrintGoodPerm(vector<int>& goodPerm, vector<Square>& squares) {
+  int sq = sqrt(goodPerm.size());
+  for (int i = 0; i < goodPerm.size(); i++) {
+    cout << squares[goodPerm[i]].ToString();
+    if ((i % sq) == (sq - 1)) {
+      cout << endl;
+    } else {
+      cout << ";";
+    }
+  }
+}
+
+// add color, return index
+int AddColor(const string& c) {
+#ifdef DEBUG
+  cout << "Adding color: " << c << endl;
+#endif
+  if (ColorToIdMap.find(c) == ColorToIdMap.end()) {
+    ColorToIdMap[c] = AllColors.size();
+    AllColors.push_back(c);
+  }
+
+  return ColorToIdMap[c];
+}
+
+template<typename Out>
+void split(const std::string &s, char delim, Out result) {
+    std::stringstream ss;
+    ss.str(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        *(result++) = item;
+    }
+}
+
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+    split(s, delim, std::back_inserter(elems));
+    return elems;
+}
+
 int main(void) {
   string sqrDesc;
-  char TopColor[20];
-  char LeftColor[20];
-  char BottomColor[20];
-  char RightColor[20];
   vector<Square> Squares;
 
   while (cin >> sqrDesc) {
-    sscanf(sqrDesc.c_str(), "(%s,%s,%s,%s)", TopColor, LeftColor, BottomColor, RightColor);
-    Squares.push_back(Square(TopColor, LeftColor, BottomColor, RightColor));
+    sqrDesc = sqrDesc.substr(1, sqrDesc.size() - 2); // remove '(' and ')'
+    vector<string> colors = split(sqrDesc, ',');
+    int top_i = AddColor(colors[0]);
+    int left_i = AddColor(colors[1]);
+    int bottom_i = AddColor(colors[2]);
+    int right_i = AddColor(colors[3]);
+    Squares.push_back(Square(top_i, left_i, bottom_i, right_i));
   }
+  BorderColorIdx = ColorToIdMap[BorderColor];
 
 #ifdef DEBUG
   cout << "Scanned " << Squares.size() << " squares" << endl;
+  for (auto& s : Squares) {
+    cout << s.ToString() << endl;
+  }
 #endif
 
   int sqrRtVal = sqrt(Squares.size());
@@ -99,6 +178,7 @@ int main(void) {
   vector<vector<int>> PosPerms;
   GenerateSquarePosPermutations(PosPerms, Squares.size());
   vector<int> goodPerm = FilterValidArrangement(PosPerms, Squares);
+  PrintGoodPerm(goodPerm, Squares);
 
   return 0;
 }
