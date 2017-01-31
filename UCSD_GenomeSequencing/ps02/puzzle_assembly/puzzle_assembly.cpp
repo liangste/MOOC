@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-//#define DEBUG
+#define DEBUG
 
 using namespace std;
 
@@ -43,14 +43,6 @@ public:
 const string BorderColor = "black";
 int BorderColorIdx = 0;
 
-void GenerateSquarePosPermutations(vector<vector<int>>& posPerms, int s) {
-	vector<int> perm(s);
-	iota(perm.begin(), perm.end(), 0);
-	do {
-		posPerms.push_back(perm);
-	} while (next_permutation(perm.begin(), perm.end()));
-}
-
 void PrintIntVector(const vector<int>& v) {
   for (auto& val : v) {
     cout << val << " ";
@@ -58,16 +50,17 @@ void PrintIntVector(const vector<int>& v) {
   cout << endl;
 }
 
-vector<int> FilterValidArrangement(vector<vector<int>>& posPerms, vector<Square>& squares) {
+vector<int> FilterValidArrangement(vector<Square>& squares) {
 	vector<int> ret;
 	int cnt;
   int wh = sqrt(squares.size());
   int whoff = wh - 1;
   bool fail;
 
-	// check 4 corners
-	// check adjacent color matches
-	for (auto& p : posPerms) {
+  vector<int> p(squares.size());
+  iota(p.begin(), p.end(), 0);
+
+  do {
     //PrintIntVector(p);
     // check all corners
     if (squares[p[0]].BorderColors[Top] == BorderColorIdx
@@ -79,6 +72,7 @@ vector<int> FilterValidArrangement(vector<vector<int>>& posPerms, vector<Square>
       && squares[p[squares.size() - 1]].BorderColors[Bottom] == BorderColorIdx
       && squares[p[squares.size() - 1]].BorderColors[Right] == BorderColorIdx)
     {
+      /*
       fail = false;
       for (int i = 0; i < squares.size() - wh; i++) {
         // check Bottom
@@ -99,8 +93,10 @@ vector<int> FilterValidArrangement(vector<vector<int>>& posPerms, vector<Square>
 
       ret = p;
       break;
+      */
+      return p;
     }
-	}
+  } while (next_permutation(p.begin(), p.end()));
 
 	return ret;
 }
@@ -162,6 +158,7 @@ int main(void) {
   }
   BorderColorIdx = ColorToIdMap[BorderColor];
 
+
 #ifdef DEBUG
   cout << "Scanned " << Squares.size() << " squares" << endl;
   for (auto& s : Squares) {
@@ -169,15 +166,14 @@ int main(void) {
   }
 #endif
 
+
   int sqrRtVal = sqrt(Squares.size());
   if (pow(sqrRtVal, 2) != Squares.size()) {
     cout << "Input squares do not form a perfect root" << endl;
-	return 1;
+    return 1;
   }
 
-  vector<vector<int>> PosPerms;
-  GenerateSquarePosPermutations(PosPerms, Squares.size());
-  vector<int> goodPerm = FilterValidArrangement(PosPerms, Squares);
+  vector<int> goodPerm = FilterValidArrangement(Squares);
   PrintGoodPerm(goodPerm, Squares);
 
   return 0;
