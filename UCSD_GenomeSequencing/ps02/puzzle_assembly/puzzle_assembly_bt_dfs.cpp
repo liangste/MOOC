@@ -64,8 +64,45 @@ void PrintIntVector(const vector<int>& v) {
   cout << endl;
 }
 
-void FindNextValidArrangement(vector<int>& arrgm, vector<bool>& visited, vector<int>& sol) {
+// can also do partial arrangements
+bool IsValidArrangement(const vector<int>& v) {
+  return true;
+}
 
+void FindNextValidArrangement(vector<int>& arrgm, vector<bool>& visited, vector<int>& sol) {
+  cout << "rec" << endl;
+  if (sol.size()) return; // we're done here
+
+  if (!IsValidArrangement(arrgm)) return; // not valid, try again
+
+  if (arrgm.size() == Squares.size()) { // valid and we've just reached the end
+    sol = arrgm;
+    return;
+  }
+
+  // otherwise recurse
+  int sq = sqrt(Squares.size());
+  int nextIdx = arrgm.size();
+  int color;
+  vector<int>& EdgeList = LeftEdgeColorList[0];
+
+  if (nextIdx % sq) { // grow right, same row
+    color = Squares[arrgm.back()].BorderColors[Right];
+    EdgeList = LeftEdgeColorList[color];
+  } else { // first of new row
+    color = Squares[arrgm[nextIdx - 1 - sq]].BorderColors[Bottom];
+    EdgeList = TopEdgeColorList[color];
+  }
+
+  for (auto cl : EdgeList) {
+    if (!visited[cl]) {
+      visited[cl] = true;
+      arrgm.push_back(cl);
+      FindNextValidArrangement(arrgm, visited, sol);
+      arrgm.pop_back();
+      visited[cl] = false;
+    }
+  }
 };
 
 vector<int> FindSolution() {
