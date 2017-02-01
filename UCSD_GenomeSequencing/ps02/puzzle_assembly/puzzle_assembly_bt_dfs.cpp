@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#define DEBUG
+//#define DEBUG
 
 using namespace std;
 
@@ -58,22 +58,101 @@ public:
 vector<Square> Squares;
 
 void PrintIntVector(const vector<int>& v) {
+  cout << "[ ";
   for (auto& val : v) {
     cout << val << " ";
   }
-  cout << endl;
+  cout << "]" << endl;
 }
 
 // can also do partial arrangements
 bool IsValidArrangement(const vector<int>& v) {
+  int wh = sqrt(Squares.size());
+
+  for (int i = 1; i < v.size(); i++) {
+    if (i == (wh - 1)) { // top right corner
+      if (Squares[v[i]].BorderColors[Top] != BorderColorIdx
+        || Squares[v[i]].BorderColors[Right] != BorderColorIdx) {
+#ifdef DEBUG
+          cout << "top right corner violation at index " << i << endl;
+#endif
+          return false;
+        }
+    } else if (i == (Squares.size() - wh)) {
+      if (Squares[v[i]].BorderColors[Left] != BorderColorIdx
+        || Squares[v[i]].BorderColors[Bottom] != BorderColorIdx){
+#ifdef DEBUG
+          cout << "bottom left corner violation at index " << i << endl;
+#endif
+          return false;
+        }
+    } else if (i == (Squares.size() - 1)) {
+      if (Squares[v[i]].BorderColors[Right] != BorderColorIdx
+        || Squares[v[i]].BorderColors[Bottom] != BorderColorIdx) {
+#ifdef DEBUG
+          cout << "bottom right corner violation at index " << i << endl;
+#endif
+          return false;
+        }
+    }
+
+    if (i < wh) { // squares alone top edge
+      if (Squares[v[i]].BorderColors[Top] != BorderColorIdx) {
+#ifdef DEBUG
+        cout << "top edge violation at index " << i << endl;
+#endif
+        return false;
+      }
+    } else if ((i % wh) == 0) { // left edge
+      if (Squares[v[i]].BorderColors[Left] != BorderColorIdx) {
+#ifdef DEBUG
+        cout << "left edge violation at index " << i << endl;
+#endif
+        return false;
+      }
+    } else if ((i % wh) == (wh - 1)) { // right edge
+      if (Squares[v[i]].BorderColors[Right] != BorderColorIdx) {
+#ifdef DEBUG
+        cout << "right edge violation at index " << i << endl;
+#endif
+        return false;
+      }
+    } else if (i >= (Squares.size() - wh)) { // bottom edge
+      if (Squares[v[i]].BorderColors[Bottom] != BorderColorIdx) {
+#ifdef DEBUG
+        cout << "bottom edge violation at index " << i << endl;
+#endif
+        return false;
+      }
+    }
+
+    // make sure bottom edge match
+    if ((i + wh) < v.size()) {
+      if (Squares[v[i]].BorderColors[Bottom] != Squares[v[i + wh]].BorderColors[Top]) {
+#ifdef DEBUG
+        cout << "neighbour mismatch at index " << i << endl;
+#endif
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
 void FindNextValidArrangement(vector<int>& arrgm, vector<bool>& visited, vector<int>& sol) {
-  cout << "rec" << endl;
-  if (sol.size()) return; // we're done here
 
-  if (!IsValidArrangement(arrgm)) return; // not valid, try again
+#ifdef DEBUG
+  PrintIntVector(arrgm);
+#endif
+
+  if (sol.size()) {
+    return; // we're done here
+  }
+
+  if (!IsValidArrangement(arrgm)) {
+    return; // not valid, try again
+  }
 
   if (arrgm.size() == Squares.size()) { // valid and we've just reached the end
     sol = arrgm;
@@ -88,19 +167,35 @@ void FindNextValidArrangement(vector<int>& arrgm, vector<bool>& visited, vector<
 
   if (nextIdx % sq) { // grow right, same row
     color = Squares[arrgm.back()].BorderColors[Right];
-    EdgeList = LeftEdgeColorList[color];
-  } else { // first of new row
-    color = Squares[arrgm[nextIdx - 1 - sq]].BorderColors[Bottom];
-    EdgeList = TopEdgeColorList[color];
-  }
 
-  for (auto cl : EdgeList) {
-    if (!visited[cl]) {
-      visited[cl] = true;
-      arrgm.push_back(cl);
-      FindNextValidArrangement(arrgm, visited, sol);
-      arrgm.pop_back();
-      visited[cl] = false;
+#ifdef DEBUG
+    cout << "grow right, looking for color " << AllColors[color] << endl;
+#endif
+
+    for (auto cl : LeftEdgeColorList[color]) {
+      if (!visited[cl]) {
+        visited[cl] = true;
+        arrgm.push_back(cl);
+        FindNextValidArrangement(arrgm, visited, sol);
+        arrgm.pop_back();
+        visited[cl] = false;
+      }
+    }
+  } else { // first of new row
+    color = Squares[arrgm[nextIdx - sq]].BorderColors[Bottom];
+
+#ifdef DEBUG
+    cout << "grow new row, looking for color " << AllColors[color] << endl;
+#endif
+
+    for (auto cl : TopEdgeColorList[color]) {
+      if (!visited[cl]) {
+        visited[cl] = true;
+        arrgm.push_back(cl);
+        FindNextValidArrangement(arrgm, visited, sol);
+        arrgm.pop_back();
+        visited[cl] = false;
+      }
     }
   }
 };
@@ -172,7 +267,7 @@ int main(void) {
     Squares.push_back(Square(top_i, left_i, bottom_i, right_i));
 
     if (colors[0] == colors[1] && colors[1] == BorderColor)
-      BorderColorIdx = Squares.size() - 1;
+      TopLeftIdx = Squares.size() - 1;
   }
   BorderColorIdx = ColorStringToIdMap[BorderColor];
 
@@ -199,6 +294,32 @@ int main(void) {
     BottomEdgeColorList[Squares[i].BorderColors[Bottom]].push_back(i);
     RightEdgeColorList[Squares[i].BorderColors[Right]].push_back(i);
   }
+
+#ifdef DEBUG
+  cout << "-- Printing TopEdgeColorList --" << endl;
+  for (int i = 0; i < TopEdgeColorList.size(); i++) {
+    cout << AllColors[i] << " : ";
+    PrintIntVector(TopEdgeColorList[i]);
+  }
+
+  cout << "-- Printing LeftEdgeColorList --" << endl;
+  for (int i = 0; i < LeftEdgeColorList.size(); i++) {
+    cout << AllColors[i] << " : ";
+    PrintIntVector(LeftEdgeColorList[i]);
+  }
+
+  cout << "-- Printing BottomEdgeColorList --" << endl;
+  for (int i = 0; i < BottomEdgeColorList.size(); i++) {
+    cout << AllColors[i] << " : ";
+    PrintIntVector(BottomEdgeColorList[i]);
+  }
+
+  cout << "-- Printing RightEdgeColorList --" << endl;
+  for (int i = 0; i < RightEdgeColorList.size(); i++) {
+    cout << AllColors[i] << " : ";
+    PrintIntVector(RightEdgeColorList[i]);
+  }
+#endif
 
   int sqrRtVal = sqrt(Squares.size());
   if (pow(sqrRtVal, 2) != Squares.size()) {
