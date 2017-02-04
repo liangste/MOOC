@@ -41,12 +41,12 @@ public:
     return true;
   }
 
-  void PrintEulerianPath() {
+  void GetEulerianCycle(vector<int>& circuit) {
     // edge_count represents the number of edges
     // emerging from a vertex
     unordered_map<int,int> edge_count;
     stack<int> curr_path;
-    vector<int> circuit;
+    circuit.clear();
 
     if (!m_vertices)
         return; //empty graph
@@ -85,9 +85,10 @@ public:
         }
     }
 
-    // we've got the circuit, now print it in reverse
-    for (int i = circuit.size() - 1; i > 0; i--)
-        cout << (1 + circuit[i]) << " ";
+    // we've got the cycle in reverse
+    reverse(circuit.begin(), circuit.end());
+    circuit.pop_back();
+    for_each(circuit.begin(), circuit.end(), [](int& i) {i++;});
   }
 
 private:
@@ -162,7 +163,13 @@ int main(void) {
 
   if (testGraph.CheckEulerian()) {
     cout << "1" << endl;
-    testGraph.PrintEulerianPath();
+    vector<int> eulerianPath;
+
+    // get the eulerian cycle
+    testGraph.GetEulerianCycle(eulerianPath);
+
+    // print it out
+    for_each(eulerianPath.begin(), eulerianPath.end(), [](int& i){cout << i << " ";});
     cout << endl;
   } else {
     cout << "0" << endl;
