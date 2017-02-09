@@ -4,7 +4,7 @@
 
 using namespace std;
 
-#define DEBUG
+//#define DEBUG
 #define LOOP(i, m) for(int i = 0; i < m; i++)
 
 // This class implements a bit unusual scheme for storing edges of the graph,
@@ -244,16 +244,59 @@ int main(void) {
 		fg.add_edge(snk, global_snk, INT_MAX);
 	}
 
-	cout << "max flow = " << max_flow(fg, global_src, global_snk) << endl;
+	max_flow(fg, global_src, global_snk);
 
+	vector<vector<int>> added_map(n_vertices, vector<int>(n_vertices, 0));
 	for (auto& re : raw_edges) {
 		vector<size_t> edge_ids = fg.get_ids(re.u);
 		for (auto& id : edge_ids) {
 			if (0 == id % 2) {
 				FlowGraph::Edge fg_edge = fg.get_edge(id);
-				cout << "added flow " << fg_edge.from << "->" << fg_edge.to << ", " << fg_edge.flow << endl;
+				//cout << "added flow " << fg_edge.from << "->" << fg_edge.to << ", " << fg_edge.flow << endl;
+				// make sure not accounting for global source and global sink
+				if (fg_edge.from < n_vertices && fg_edge.to < n_vertices) {
+					added_map[fg_edge.from][fg_edge.to] += fg_edge.flow;
+				}
 			}
 		}
+	}
+
+	// re-calculate all incoming and outgoing edges
+	for (auto& e : raw_edges) {
+		e.l += added_map[e.u][e.v];
+	}
+
+	// check edges are good or not
+	fill(t_out.begin(), t_out.end(), 0);
+	fill(t_in.begin(), t_in.end(), 0);
+
+	for (auto& e : raw_edges) {
+		t_out[e.u] += e.l;
+		t_in[e.v] += e.l;
+	}
+
+	bool balanced = true;
+	LOOP(i, t_out.size()) {
+		if (t_out[i] != t_in[i]) {
+			balanced = false;
+			break;
+		}
+	}
+
+	for (auto& e : raw_edges) {
+		if (e.l > e.c) {
+			balanced = false;
+			break;
+		}
+	}
+
+	if (balanced) {
+		cout << "YES" << endl;
+		for (auto& e : raw_edges) {
+			cout << e.l << endl;
+		}
+	} else {
+		cout << "NO" << endl;
 	}
 
   return 0;
