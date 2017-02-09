@@ -5,6 +5,7 @@
 using namespace std;
 
 #define DEBUG
+#define LOOP(i, m) for(int i = 0; i < m; i++)
 
 // This class implements a bit unusual scheme for storing edges of the graph,
 // in order to retrieve the backward edge for a given edge quickly
@@ -67,14 +68,14 @@ public:
 
 
   vector<bool> dfs_visited_vertices;
-	bool dfs_path_helper(int vertex, vector<int>& path, vector<size_t>& edgeIndices) {
+	bool dfs_path_helper(int vertex, int target, vector<int>& path, vector<size_t>& edgeIndices) {
     dfs_visited_vertices[vertex] = true;
 
 		if (vertex < 0 || vertex >= graph.size()) {
 			return false;
 		}
 
-		if (vertex == (graph.size() - 1)) {
+		if (vertex == target) {
 			path.push_back(vertex);
 			return true;
 		}
@@ -86,7 +87,7 @@ public:
       residual_flow = e.getResidual();
 			if (residual_flow > 0) {
         if (!dfs_visited_vertices[e.to]) {
-  				if (dfs_path_helper(e.to, path, edgeIndices)) {
+  				if (dfs_path_helper(e.to, target, path, edgeIndices)) {
   					path.push_back(vertex);
   					edgeIndices.push_back(id);
   					return true;
@@ -98,14 +99,14 @@ public:
 		return false;
 	}
 
-	void find_dfs_path(vector<int>& path, vector<size_t>& edgeIndices) {
+	void find_dfs_path(vector<int>& path, vector<size_t>& edgeIndices, int start, int end) {
 		// find a path from vertex index 0 to vertex index graph.size() - 1 using
 		// Depth-First-Search algorithm. Then return indices of vertexes of this
 		// path
 
     dfs_visited_vertices.clear();
     dfs_visited_vertices = vector<bool>(graph.size(), false);
-		dfs_path_helper(0, path, edgeIndices);
+		dfs_path_helper(start, end, path, edgeIndices);
 	}
 
 	void add_flow(size_t id, int flow) {
@@ -133,7 +134,6 @@ int max_flow(FlowGraph& graph, int from, int to) {
 	//   g flow with g_e = X for e in P
 	//   f <- f + g
 
-  int iteration = 0;
 	while(true) {
 		vector<int> path;
 		vector<size_t> edges;
@@ -150,7 +150,7 @@ int max_flow(FlowGraph& graph, int from, int to) {
   	}
 #endif
 
-		graph.find_dfs_path(path, edges);
+		graph.find_dfs_path(path, edges, from, to);
 
 		if (path.size() == 0) {
 			return flow;
@@ -170,91 +170,91 @@ int max_flow(FlowGraph& graph, int from, int to) {
 		}
 
 		flow += min_cap;
-    iteration++;
 	}
 
 	return flow;
 }
 
-struct BoundedEdge {
-  int from, to, capacity, flow;
-
-  // calculate residual capacity
-  int getResidual() const {return capacity - flow;};
+struct RawBoundedEdge {
+  int u, v, l, c;
 };
 
+void PrintVectorInt(vector<int>& v) {
+	for (auto& v_ : v) {
+		cout << v_ << " ";
+	}
+	cout << endl;
+}
+
 int main(void) {
-  int n_vertices, n_edges;
-  cin >> n_vertices >> n_edges;
-  FlowGraph fg(n_vertices + 2);
-  vector<vector<int>> adj_list;
-  vector<BoundedEdge> edges;
-  vector<int> outgoing_flow, incoming_flow;
-  int master_source, master_sink;
 
-  int u, v, l, c;
-  int m = n_edges;
+	int n_vertices, n_edges;
+	cin >> n_vertices >> n_edges;
+	vector<RawBoundedEdge> raw_edges;
+	vector<int> source_vertices;
+	vector<int> sink_vertices;
 
-  adj_list.resize(n_vertices);
-  outgoing_flow.resize(n_vertices);
-  incoming_flow.resize(n_vertices);
-  master_source = n_vertices;
-  master_sink = n_vertices + 1;
+	LOOP(i, n_edges) {
+		RawBoundedEdge e;
+		cin >> e.u >> e.v >> e.l >> e.c;
+		e.u--;
+		e.v--;
+		raw_edges.push_back(e);
+	}
 
-  while(m--) {
-    cin >> u >> v >> l >> c;
-    BoundedEdge e;
-    e.from = u - 1;
-    e.to = v - 1;
-    e.flow = l;
-    e.capacity = c;
-    adj_list[u - 1].push_back(edges.size());
-    edges.push_back(e);
+	vector<int> t_out(n_vertices, 0);
+	vector<int> t_in(n_vertices, 0);
 
-    outgoing_flow[e.from] += e.flow;
-    incoming_flow[e.to] += e.flow;
-  }
+	// find source and sink vertices
+	for (auto& e : raw_edges) {
+		t_out[e.u] += e.l;
+		t_in[e.v] += e.l;
+	}
+
+	LOOP(i, n_vertices) {
+		if (t_out[i] == t_in[i]) continue;
+		if (t_out[i] > t_in[i]) {
+			sink_vertices.push_back(i);
+		} else {
+			source_vertices.push_back(i);
+		}
+	}
 
 #ifdef DEBUG
-  cout << "showing total incoming and outgoing flows" << endl;
-  for (int i = 0; i < n_vertices; i++) {
-    cout << i << ":" << " in[" << incoming_flow[i] << "], out[" << outgoing_flow[i] << "]" << endl;
-  }
+	cout << "source vertices" << endl;
+	PrintVectorInt(source_vertices);
+	cout << "sink vertices" << endl;
+	PrintVectorInt(sink_vertices);
 #endif
 
-  // add edges to flowgraph
-  for (int i = 0; i < adj_list.size(); i++) {
-    for (int j = 0; j < adj_list[i].size(); j++) {
-      int e = adj_list[i][j];
-      fg.add_edge(edges[e].from, edges[e].to, edges[e].capacity - edges[e].flow);
-    }
-  }
+	// translate to max-flow problem
+	int global_src = n_vertices;
+	int global_snk = n_vertices + 1;
+	FlowGraph fg(n_vertices + 2); // add global source and global sink
+	// find source and sink vertices
+	for (auto& e : raw_edges) {
+		fg.add_edge(e.u, e.v, e.c - e.l);
+	}
 
-  int source_total, sink_total;
-  for (int i = 0; i < n_vertices; i++) {
-    if (incoming_flow[i] > outgoing_flow[i]) { // source
-      source_total += (incoming_flow[i] - outgoing_flow[i]);
-    } else if (incoming_flow[i] < outgoing_flow[i]) { // sink
-      sink_total += (outgoing_flow[i] - incoming_flow[i]);
-    }
-  }
+	for (auto& sc : source_vertices) {
+		fg.add_edge(global_src, sc, INT_MAX);
+	}
 
-  for (int i = 0; i < n_vertices; i++) {
-    if (incoming_flow[i] > outgoing_flow[i]) { // source
-      fg.add_edge(master_source, i, source_total);
-    } else if (incoming_flow[i] < outgoing_flow[i]) { // sink
-      fg.add_edge(i, master_sink, sink_total);
-    }
-  }
+	for (auto& snk : sink_vertices) {
+		fg.add_edge(snk, global_snk, INT_MAX);
+	}
 
-  std::cout << max_flow(fg, master_source, master_sink) << "\n";
+	cout << "max flow = " << max_flow(fg, global_src, global_snk) << endl;
 
-  for (int i = 0; i < n_vertices; i++) {
-    vector<size_t> ids = fg.get_ids(i);
-    for (auto& id : ids) {
-      fg.print_edge(id);
-    }
-  }
+	for (auto& re : raw_edges) {
+		vector<size_t> edge_ids = fg.get_ids(re.u);
+		for (auto& id : edge_ids) {
+			if (0 == id % 2) {
+				FlowGraph::Edge fg_edge = fg.get_edge(id);
+				cout << "added flow " << fg_edge.from << "->" << fg_edge.to << ", " << fg_edge.flow << endl;
+			}
+		}
+	}
 
   return 0;
 }
