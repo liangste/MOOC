@@ -1,46 +1,28 @@
+#include <algorithm>
 #include <climits>
 #include <iostream>
 #include <vector>
+#include <set>
+#include <cstring>
 
 using namespace std;
 
 //#define DEBUG
 #define LOOP(i, m) for(int i = 0; i < m; i++)
 
-// This class implements a bit unusual scheme for storing edges of the graph,
-// in order to retrieve the backward edge for a given edge quickly
 class FlowGraph {
 public:
-	// we can use 1 instance of FlowGraph to store both original and residual
-	// network. But we do need to interpret things differently...
-	//
-	// for original graph:
-	//   concerned with actual flow and capacty only in forward edge
-	//
-	// for residual graph
-	//   forward edge obtained by capacity - flow
-	//   backward edge is equal to flow
 	struct Edge {
 		int from, to, capacity, flow;
 
-		// calculate residual capacity
 		int getResidual() const {return capacity - flow;};
 	};
-
-private:
-	// List of all - forward and backward - edges
 	vector<Edge> edges;
-
-	// These adjacency lists store only indices of edges in the edges list
 	vector<vector<size_t> > graph;
 
-public:
 	explicit FlowGraph(size_t n): graph(n) {}
 
 	void add_edge(int from, int to, int capacity) {
-		// Note that we first append a forward edge and then a backward edge,
-		// so all forward edges are stored at even indices (starting from 0),
-		// whereas backward edges are stored at odd indices in the list edges
 		Edge forward_edge = {from, to, capacity, 0};
 		Edge backward_edge = {to, from, 0, 0};
 		graph[from].push_back(edges.size());
@@ -66,6 +48,15 @@ public:
 		cout << "Edge from " << edge.from << "->" << edge.to << ", c=" << edge.capacity << ", flow=" << edge.flow << endl;
 	}
 
+	void print_graph() {
+		LOOP(i, graph.size()) {
+			vector<size_t> ids = get_ids(i);
+			for (auto& id : ids) {
+				if (0 == id % 2)
+					print_edge(id);
+			}
+		}
+	}
 
   vector<bool> dfs_visited_vertices;
 	bool dfs_path_helper(int vertex, int target, vector<int>& path, vector<size_t>& edgeIndices) {
@@ -100,43 +91,61 @@ public:
 	}
 
 	void find_dfs_path(vector<int>& path, vector<size_t>& edgeIndices, int start, int end) {
-		// find a path from vertex index 0 to vertex index graph.size() - 1 using
-		// Depth-First-Search algorithm. Then return indices of vertexes of this
-		// path
-
     dfs_visited_vertices.clear();
     dfs_visited_vertices = vector<bool>(graph.size(), false);
 		dfs_path_helper(start, end, path, edgeIndices);
 	}
 
 	void add_flow(size_t id, int flow) {
-		// To get a backward edge for a true forward edge (i.e id is even), we should get id + 1
-		// due to the described above scheme. On the other hand, when we have to get a "backward"
-		// edge for a backward edge (i.e. get a forward edge for backward - id is odd), id - 1
-		// should be taken.
-		//
-		// It turns out that id ^ 1 works for both cases. Think this through!
 		edges[id].flow += flow;
 		edges[id ^ 1].flow -= flow; // toggles the first bit
 	}
 };
 
+void PrintVectorInt(vector<int>& v) {
+	for (auto& v_ : v) {
+		cout << v_ << " ";
+	}
+	cout << endl;
+}
+
+struct BitMatrix {
+	bool* data;
+	size_t s;
+};
+
+void BM_Init(BitMatrix& bm, int size) {
+	bm.data = new bool[size * size];
+  memset(bm.data, 0, size * size);
+	bm.s = size;
+}
+
+void BM_Deinit(BitMatrix& bm) {
+	delete bm.data;
+	bm.s = 0;
+}
+
+void BM_Clear(BitMatrix& bm) {
+	memset(bm.data, 0, bm.s * bm.s);
+}
+
+bool BM_Get(BitMatrix& bm, int row, int col) {
+	return bm.data[row + col * bm.s];
+}
+
+void BM_Set(BitMatrix& bm, int row, int col, bool val) {
+	bm.data[row + col * bm.s] = val;
+}
+
 int max_flow(FlowGraph& graph, int from, int to) {
 	int flow = 0;
-
-	// NOTE we can reuse graph as the residual graph
-	// f <- 0
-	// repeat:
-	//   Compuete G_f
-	//   Find s-t path P in G_f
-	//   if no path: return f
-	//   X <- min C_e
-	//   g flow with g_e = X for e in P
-	//   f <- f + g
+	BitMatrix edgeTracker;
+	BM_Init(edgeTracker, graph.size());
 
 	while(true) {
 		vector<int> path;
 		vector<size_t> edges;
+		BM_Clear(edgeTracker);
 
 #ifdef DEBUG
   	for (int i = 0; i < graph.size(); i++) {
@@ -156,6 +165,13 @@ int max_flow(FlowGraph& graph, int from, int to) {
 			return flow;
 		}
 
+#ifdef DEBUG
+		cout << "found dfs path" << endl;
+		vector<int> pathr = path;
+		reverse(pathr.begin(), pathr.end());
+		PrintVectorInt(pathr);
+#endif
+
 		int min_cap = INT_MAX;
 		for (auto eid : edges) {
 			if (graph.get_edge(eid).getResidual() < min_cap) {
@@ -163,10 +179,15 @@ int max_flow(FlowGraph& graph, int from, int to) {
 			}
 		}
 
-		// get X ... minimum capacity alone the path
-
-		for (auto e : edges) {
-			graph.add_flow(e, min_cap);
+		for (auto e_id : edges) {
+			FlowGraph::Edge e = graph.get_edge(e_id);
+			if (!BM_Get(edgeTracker, e.from, e.to)) {
+#ifdef DEBUG
+				cout << "Adding " << min_cap << " flow from " << e.from << " to " << e.to << endl;
+#endif
+				graph.add_flow(e_id, min_cap);
+				BM_Set(edgeTracker, e.from, e.to, true);
+			}
 		}
 
 		flow += min_cap;
@@ -179,20 +200,14 @@ struct RawBoundedEdge {
   int u, v, l, c;
 };
 
-void PrintVectorInt(vector<int>& v) {
-	for (auto& v_ : v) {
-		cout << v_ << " ";
-	}
-	cout << endl;
-}
-
 int main(void) {
 
 	int n_vertices, n_edges;
 	cin >> n_vertices >> n_edges;
 	vector<RawBoundedEdge> raw_edges;
-	vector<int> source_vertices;
-	vector<int> sink_vertices;
+	vector<pair<int, int>> source_vertices;
+	vector<pair<int, int>> sink_vertices;
+	int total_demand = 0;
 
 	LOOP(i, n_edges) {
 		RawBoundedEdge e;
@@ -214,17 +229,15 @@ int main(void) {
 	LOOP(i, n_vertices) {
 		if (t_out[i] == t_in[i]) continue;
 		if (t_out[i] > t_in[i]) {
-			sink_vertices.push_back(i);
+			sink_vertices.push_back({i, t_out[i] - t_in[i]});
+			total_demand += (t_out[i] - t_in[i]);
 		} else {
-			source_vertices.push_back(i);
+			source_vertices.push_back({i, t_in[i] - t_out[i]});
 		}
 	}
 
 #ifdef DEBUG
-	cout << "source vertices" << endl;
-	PrintVectorInt(source_vertices);
-	cout << "sink vertices" << endl;
-	PrintVectorInt(sink_vertices);
+	cout << "Total demand = " << total_demand << endl;
 #endif
 
 	// translate to max-flow problem
@@ -237,33 +250,40 @@ int main(void) {
 	}
 
 	for (auto& sc : source_vertices) {
-		fg.add_edge(global_src, sc, INT_MAX);
+		fg.add_edge(global_src, sc.first, sc.second);
 	}
 
 	for (auto& snk : sink_vertices) {
-		fg.add_edge(snk, global_snk, INT_MAX);
+		fg.add_edge(snk.first, global_snk, snk.second);
 	}
 
-	max_flow(fg, global_src, global_snk);
+#ifdef DEBUG
+	fg.print_graph();
+#endif
 
-	vector<vector<int>> added_map(n_vertices, vector<int>(n_vertices, 0));
-	for (auto& re : raw_edges) {
-		vector<size_t> edge_ids = fg.get_ids(re.u);
-		for (auto& id : edge_ids) {
-			if (0 == id % 2) {
-				FlowGraph::Edge fg_edge = fg.get_edge(id);
-				//cout << "added flow " << fg_edge.from << "->" << fg_edge.to << ", " << fg_edge.flow << endl;
-				// make sure not accounting for global source and global sink
-				if (fg_edge.from < n_vertices && fg_edge.to < n_vertices) {
-					added_map[fg_edge.from][fg_edge.to] += fg_edge.flow;
-				}
-			}
-		}
+	if (total_demand != max_flow(fg, global_src, global_snk)) {
+#ifdef DEBUG
+		cout << "total demand not met" << endl;
+#endif
+		cout << "NO" << endl;
+		return 1;
 	}
 
-	// re-calculate all incoming and outgoing edges
-	for (auto& e : raw_edges) {
-		e.l += added_map[e.u][e.v];
+#ifdef DEBUG
+	fg.print_graph();
+#endif
+
+	LOOP(i, n_edges) {
+		RawBoundedEdge e = raw_edges[i];
+		FlowGraph::Edge f_e = fg.edges[i * 2];
+#ifdef DEBUG
+		cout << i << endl;
+		cout << "r.e " << e.u << "->" << e.v << " --- ";
+		cout << "(u, v, l, c) = (" << e.u << ", " << e.v << ", " << e.l << ", " << e.c << ")" << endl;
+		cout << "f.e " << f_e.from << "->" << f_e.to << " --- ";
+		cout << "(from, to, flow, capacity) = (" << f_e.from << ", " << f_e.to << ", " << f_e.flow << ", " << f_e.capacity << ")" << endl;
+#endif
+		raw_edges[i].l += f_e.flow;
 	}
 
 	// check edges are good or not
