@@ -65,7 +65,7 @@ public:
 #endif
       m_adjList[from_vertex_index].push_back(to_vertex_index);
       m_inDegrees[to_vertex_index]++;
-  }
+    }
   }
 
   // check for Eulerian cycle conditions
