@@ -103,7 +103,7 @@ private:
       return;
     }
 
-    int s = path[path.size() - 1];
+    int s = path.back();
     LOOP(i, adjList_[s].size()) {
       int v = adjList_[s][i];
 
@@ -115,18 +115,21 @@ private:
         visited.erase(v);
       } else {
         // we're visiting a vertex we've previously visited before
-        return;
+        continue;
       }
     }
   }
 
+  // NOTE using this method, we may count the same bubble multiple times due
+  // to combination of small bubbles and large threholds
   bool PathsFormBubble(set<int>& a, set<int>& b, int source) {
+    int cnt = 0;
     for (auto& val_a : a) {
-      if (b.find(val_a) != b.end() && val_a != source) {
-        return true;
+      if (b.find(val_a) != b.end()) {
+        cnt++;
       }
     }
-    return false;
+    return (cnt == 2);
   }
 
   int CountBubblesFromSource(int s, int t) {
@@ -150,8 +153,9 @@ private:
     // check each pair of these paths for bubbles
     LOOP(i, allPaths.size() - 1) {
       for (int j = i + 1; j < allPaths.size(); j++) {
-        if (PathsFormBubble(allSets[i], allSets[j], s))
+        if (PathsFormBubble(allSets[i], allSets[j], s)) {
           count++;
+        }
       }
     }
 
