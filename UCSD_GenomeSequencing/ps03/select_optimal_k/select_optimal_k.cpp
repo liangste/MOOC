@@ -6,8 +6,6 @@
 
 using namespace std;
 
-const size_t UpperLimit = 24;
-
 vector<string> Reads;
 
 bool IsOptimalK(int k) {
@@ -44,7 +42,7 @@ int main(void) {
     Reads.push_back(r);
   };
 
-  max_size = min(Reads[0].size(), UpperLimit);
+  max_size = Reads[0].size();
 
   for (int i = max_size; i > 0; i--) {
     if (IsOptimalK(i)) {
