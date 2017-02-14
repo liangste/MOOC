@@ -1,3 +1,10 @@
+// bubble_detection.cpp with De Bruijn graph replaced with simple DAG
+//
+// first line of input should be 3 positive integers V, E and T denoting the number
+// of vertices, the number of edges and bubble threshold
+// the following E lines contain integers FROM and TO denoting a directed edge
+// from vertex FROM to vertex TO. Vertices should be 0-indexed
+
 #include <iostream>
 #include <set>
 #include <vector>
@@ -18,73 +25,15 @@ void PrintVectorInt(vi& v) {
   cout << endl;
 }
 
-class DeBruijnGraph {
+class BubbleGraph {
 public:
   // k-mer size and threshold t
-  DeBruijnGraph(int k, int t) : k_(k), t_(t), v_(0) {
-
+  BubbleGraph(int v, int e, int t) : v_(v), e_(e), t_(t) {
+      adjList_.resize(v);
   }
 
-  void AddRead(const string& r) {
-    LOOP(i, r.size() - k_ + 1) {
-      string kmer = r.substr(i, k_);
-      if (edgeSet_.find(kmer) == edgeSet_.end()) {
-        edgeSet_.insert(kmer);
-        edges_.push_back(kmer);
-      }
-    }
-  }
-
-  void BuildDeBruijnGraph() {
-#ifdef DEBUG
-    for (auto& e : edges_) {
-          cout << e << endl;
-    }
-#endif
-
-    // generate all vertices from kmers
-    for (auto edge : edges_) {
-      string pre = edge.substr(0, edge.size() - 1);
-      string suf = edge.substr(1);
-
-      prefixMap_.insert({pre, v_});
-
-      if (vertixMap_.find(pre) == vertixMap_.end()) {
-        vertices_.push_back(pre);
-        vertixMap_[pre] = v_++;
-      }
-
-      if (vertixMap_.find(suf) == vertixMap_.end()) {
-        vertices_.push_back(suf);
-        vertixMap_[suf] = v_++;
-      }
-    }
-
-#ifdef DEBUG
-    cout << "Number of edges = " << edges_.size() << " and number of vertices = " << vertices_.size() << endl;
-    LOOP(i, v_) {
-      cout << i << " : " << vertices_[i] << endl;
-    }
-#endif
-
-    adjList_.resize(v_);
-
-    LOOP(i, edges_.size()) {
-      string pre = edges_[i].substr(0, edges_[i].size() - 1);
-      string suf = edges_[i].substr(1);
-      int to_vertex_index = vertixMap_[suf];
-      int from_vertex_index = vertixMap_[pre];
-      adjList_[from_vertex_index].push_back(to_vertex_index);
-    }
-
-#ifdef DEBUG
-    LOOP(i, adjList_.size()) {
-      LOOP(j, adjList_[i].size()) {
-        cout << i << "{" << vertices_[i] << "} -> "
-          << adjList_[i][j] << "{" << vertices_[adjList_[i][j]] << "}" <<  endl;
-      }
-    }
-#endif
+  void AddEdge(int u, int v) {
+      adjList_[u].push_back(v);
   }
 
   int CountBubbles() {
@@ -128,6 +77,7 @@ private:
     }
   }
 
+  // this function fails with test case 4 -> 7
   int CountBubblesFromLeftRightPaths(vector<set<int>>& leftSet, vvi& rightPaths) {
       set<int> globalLeftSet;
       set<int> mergeVertices;
@@ -156,6 +106,10 @@ private:
 
     for (int i = 0; i < (nPath - 1); i++) {
         for (int j = i + 1; j < nPath; j++) {
+            int bbl = 0;
+#ifdef DEBUG
+            cout << "src " << s << " left " << i << ", right " << j << endl;
+#endif
             path.clear();
             leftPaths.clear();
             visited.clear();
@@ -163,6 +117,13 @@ private:
             path.push_back(adjList_[s][i]);
             visited.insert(adjList_[s][i]);
             GetNonOverLappingPaths(path, visited, leftPaths, leftSet, t);
+
+#ifdef DEBUG
+            cout << "Left paths" << endl;
+            for (auto& v : leftPaths) {
+                PrintVectorInt(v);
+            }
+#endif
 
             path.clear();
             rightPaths.clear();
@@ -172,7 +133,17 @@ private:
             visited.insert(adjList_[s][j]);
             GetNonOverLappingPaths(path, visited, rightPaths, rightSet, t);
 
-            count += CountBubblesFromLeftRightPaths(leftSet, rightPaths);
+#ifdef DEBUG
+            cout << "Right paths" << endl;
+            for (auto& v : rightPaths) {
+                PrintVectorInt(v);
+            }
+#endif
+            bbl = CountBubblesFromLeftRightPaths(leftSet, rightPaths);
+#ifdef DEBUG
+            cout << "bbl " << bbl << endl;
+#endif
+            count += bbl;
         }
     }
 
@@ -180,34 +151,24 @@ private:
   }
 
   // k-mer size and bubble threshold
-  int                         k_;
+  int                         v_;
+  int                         e_;
   int                         t_;
-
-  // edkges
-  vector<string>              edges_;
-  set<string>                 edgeSet_;
-
-  // vertices
-  int                         v_; // number of vertices
-  vector<string>              vertices_;
-  multimap<string, int>       prefixMap_;
-  unordered_map<string, int>  vertixMap_; // vertex value to index
 
   // graph
   vvi                         adjList_;
 };
 
 int main(void) {
-  int k, t;
-  string read;
+  int v, e, t;
 
-  cin >> k >> t;
-  DeBruijnGraph graph(k, t);
-  while (cin >> read) {
-    graph.AddRead(read);
+  cin >> v >> e >> t;
+  BubbleGraph graph(v, e, t);
+  int to, from;
+  while (e--) {
+    cin >> from >> to;
+    graph.AddEdge(from, to);
   }
-
-  graph.BuildDeBruijnGraph();
 
   cout << graph.CountBubbles() << endl;
 
