@@ -77,23 +77,61 @@ private:
     }
   }
 
-  // this function fails with test case 4 -> 7
-  int CountBubblesFromLeftRightPaths(vector<set<int>>& leftSet, vvi& rightPaths) {
-      set<int> globalLeftSet;
-      set<int> mergeVertices;
+  string GetPathString(vi& leftPath, vi& rightPath, int merge) {
+    string ret;
+    for (auto& p : leftPath)
+      if (p == merge) {
+        ret += to_string(p);
+        break;
+      }
+      else
+        ret += to_string(p) + ",";
 
-      for (auto& s : leftSet) {
+      ret += ";";
+
+      for (auto& p : rightPath)
+        if (p == merge) {
+          ret += to_string(p);
+          break;
+        }
+        else
+          ret += to_string(p) + ",";
+
+      return ret;
+  }
+
+  // this function fails with test case 4 -> 7
+  int CountBubblesFromLeftRightPaths(vector<set<int>>& leftSet, vector<set<int>>& rightSet, vvi& leftPaths, vvi& rightPaths) {
+      bool merged;
+      set<string> mergePaths;
+
+      for (int i = 0; i < leftSet.size(); i++) {
+          auto& s = leftSet[i];
           for (auto& p : rightPaths) {
+              merged = false;
               for (auto& v : p) {
                   if (s.find(v) != s.end()) {
-                      mergeVertices.insert(v);
+#ifdef DEBUG
+                      cout << "found merge point " << v << endl;
+#endif
+                      merged = true;
+                      string pathString = GetPathString(leftPaths[i], p, v);
+                      mergePaths.insert(pathString);
                       break; // end current path
                   }
               }
+
+              if (merged) continue;
           }
       }
 
-      return mergeVertices.size();
+#ifdef DEBUG
+      cout << "path strings" << endl;
+      for (auto& s : mergePaths)
+        cout << s << endl;
+#endif
+
+      return mergePaths.size();
   }
 
   int CountBubblesFromSource(int s, int t) {
@@ -108,7 +146,7 @@ private:
         for (int j = i + 1; j < nPath; j++) {
             int bbl = 0;
 #ifdef DEBUG
-            cout << "src " << s << " left " << i << ", right " << j << endl;
+            cout << "SRC [" << s << "]" << endl;
 #endif
             path.clear();
             leftPaths.clear();
@@ -139,9 +177,9 @@ private:
                 PrintVectorInt(v);
             }
 #endif
-            bbl = CountBubblesFromLeftRightPaths(leftSet, rightPaths);
+            bbl = CountBubblesFromLeftRightPaths(leftSet, rightSet, leftPaths, rightPaths);
 #ifdef DEBUG
-            cout << "bbl " << bbl << endl;
+            cout << "+ bubble " << bbl << endl;
 #endif
             count += bbl;
         }

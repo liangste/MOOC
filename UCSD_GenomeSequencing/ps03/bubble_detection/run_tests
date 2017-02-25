@@ -1,0 +1,57 @@
+#!/usr/bin/python
+
+import sys
+from os import listdir
+import os.path
+from subprocess import Popen, PIPE
+
+executer = "./a.out"
+
+def print_help():
+	print "usage: <this_script> [test_dir]"
+
+def parse_args():
+	if len(sys.argv) <= 1:
+		print_help()
+		sys.exit()
+
+	return sys.argv[1]
+
+def read_ascii_file_contents(filename):
+	with open(filename) as f:
+		return f.read()
+
+def run_test(d, tf, tfa):
+	tf = d + "/" + tf
+	tfa = d + "/" + tfa
+	if not os.path.isfile(tfa):
+		print "Could not find answer file ", tfa
+		return
+	print "Running test", tfa
+
+	t = read_ascii_file_contents(tf)
+	p = Popen(executer, stdin=PIPE, stdout=PIPE)
+	act = p.communicate(t)[0]
+	exp = read_ascii_file_contents(tfa)
+
+	if act == exp:
+		print "PASS"
+	else:
+		print "FAIL"
+		print "[input was]"
+		print t
+		print "[actual]"
+		print act
+		print "[expected]"
+		print exp
+
+def run_tests(testdir):
+	print "Testing under directory:", testdir
+	suffix = ".a"
+	files = [f for f in listdir(testdir) if not f.endswith(suffix)]
+	for f in sorted(files):
+		run_test(testdir, f, f + ".a")
+
+if __name__ == "__main__":
+	testdir = parse_args()
+	run_tests(testdir)

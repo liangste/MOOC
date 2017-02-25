@@ -89,8 +89,8 @@ public:
 
   int CountBubbles() {
     int cnt = 0;
-    LOOP(i, adjList_.size())
-      if (adjList_[i].size() >= 2)
+    LOOP(i, adjList_.size()) // go through every vertices
+      if (adjList_[i].size() >= 2) // if has more than 2 outgoing vertices
         cnt += CountBubblesFromSource(i, t_);
     return cnt;
   }
@@ -128,22 +128,61 @@ private:
     }
   }
 
-  int CountBubblesFromLeftRightPaths(vector<set<int>>& leftSet, vvi& rightPaths) {
-      set<int> globalLeftSet;
-      set<int> mergeVertices;
+  string GetPathString(vi& leftPath, vi& rightPath, int merge) {
+    string ret;
+    for (auto& p : leftPath)
+      if (p == merge) {
+        ret += to_string(p);
+        break;
+      }
+      else
+        ret += to_string(p) + ",";
 
-      for (auto& s : leftSet) {
+      ret += ";";
+
+      for (auto& p : rightPath)
+        if (p == merge) {
+          ret += to_string(p);
+          break;
+        }
+        else
+          ret += to_string(p) + ",";
+
+      return ret;
+  }
+
+
+  int CountBubblesFromLeftRightPaths(vector<set<int>>& leftSet, vector<set<int>>& rightSet, vvi& leftPaths, vvi& rightPaths) {
+      bool merged;
+      set<string> mergePaths;
+
+      for (int i = 0; i < leftSet.size(); i++) {
+          auto& s = leftSet[i];
           for (auto& p : rightPaths) {
+              merged = false;
               for (auto& v : p) {
                   if (s.find(v) != s.end()) {
-                      mergeVertices.insert(v);
+#ifdef DEBUG
+                      cout << "found merge point " << v << endl;
+#endif
+                      merged = true;
+                      string pathString = GetPathString(leftPaths[i], p, v);
+                      mergePaths.insert(pathString);
                       break; // end current path
                   }
               }
+
+              if (merged) continue;
           }
       }
 
-      return mergeVertices.size();
+#ifdef DEBUG
+      cout << "path strings" << endl;
+      for (auto& s : mergePaths)
+        cout << s << endl;
+#endif
+
+      return mergePaths.size();
   }
 
   int CountBubblesFromSource(int s, int t) {
@@ -172,7 +211,7 @@ private:
             visited.insert(adjList_[s][j]);
             GetNonOverLappingPaths(path, visited, rightPaths, rightSet, t);
 
-            count += CountBubblesFromLeftRightPaths(leftSet, rightPaths);
+            count += CountBubblesFromLeftRightPaths(leftSet, rightSet, leftPaths, rightPaths);
         }
     }
 
